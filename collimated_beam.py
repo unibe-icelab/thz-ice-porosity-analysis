@@ -2,7 +2,6 @@ from pathlib import Path
 
 import numpy as np
 from math_utils import get_fft
-from numpy.f2py.symbolic import as_expr
 from pydotthz import DotthzFile
 from thzpy.timedomain import common_window
 from thzpy.transferfunctions import uniform_slab
@@ -54,10 +53,16 @@ def get_thz_data(path: Path):
         with DotthzFile(file) as f:
             t = f["Single Pixel 0"].datasets["Sample"][:, 0]
             d = f["Single Pixel 0"].datasets["Sample"][:, 1]
+            try:
+                r = f["Single Pixel 0"].datasets["Ref"][:, 1]
+            except KeyError:
+                r = None
 
             d = d[(t < 1960) & (t > 1860)]
+            if r is not None:
+                r = r[(t < 1960) & (t > 1860)]
             t = t[(t < 1960) & (t > 1860)]
-            return t, d
+            return t, d, r
 
 
 def load_img(path: Path):
@@ -141,7 +146,7 @@ if __name__ == '__main__':
 
     solid_ice_path = Path("/Users/linus/Documents/collimated_solid_ice_3a/data/single_pixel")
 
-    t_solid, p_solid = get_thz_data(solid_ice_path)
+    t_solid, p_solid, _ = get_thz_data(solid_ice_path)
 
     # p = np.mean(p_solid, axis=(0, 1))
     # f, a, arg = get_fft( t_solid, p)
@@ -150,7 +155,19 @@ if __name__ == '__main__':
     # axes[1].plot(f, arg, label=f"reference solid ice")
 
     silicon_ref_path = Path("/Users/linus/Documents/collimated_silicon_metal_sheet_fix_focus/data/single_pixel")
-    t_ref, p_ref = get_thz_data(silicon_ref_path)
+    t_ref, p_ref, _ = get_thz_data(silicon_ref_path)
+
+    silicon_ref_path_april = Path(
+        "/Users/linus/Documents/porous_ice_campaign_april_2026_silicon/data/trans/single_pixel")
+    t_ref_april, p_ref_april, _ = get_thz_data(silicon_ref_path_april)
+
+    silicon_ref_path_july = Path(
+        "/Users/linus/Documents/porosity_july_2026_Silicon_ref_/data/trans/single_pixel")
+    t_ref_july, p_ref_july, _ = get_thz_data(silicon_ref_path_july)
+
+    silicon_ref_path_july_2 = Path(
+        "/Users/linus/Documents/porosity_july_2026_silicon_ref_2/data/trans/single_pixel")
+    t_ref_july_2, p_ref_july_2, _ = get_thz_data(silicon_ref_path_july_2)
 
     # f, a, arg = get_fft(t_ref, p_ref)
     #
@@ -180,6 +197,102 @@ if __name__ == '__main__':
         (Path("/Users/linus/Documents/collimated_frost_4/data/single_pixel"), "Frost", 0.00482, 10),
         (Path("/Users/linus/Documents/collimated_frost_5/data/single_pixel"), "Frost", 0.00831, 10.5),
         (Path("/Users/linus/Documents/collimated_frost_6/data/single_pixel"), "Frost", 0.00831, 10.5),
+
+        # campaign in april 2026
+        # (Path("/Users/linus/Documents/porous_ice_campaign_april_2026_empty/data/trans/single_pixel"), "Empty", 0, 0),
+        # (Path("/Users/linus/Documents/porous_ice_campaign_april_2026_silicon/data/trans/single_pixel"), "Si", 0, 0),
+
+        # (Path("/Users/linus/Documents/porous_ice_campaign_april_2026_spipab_5mm/data/trans/single_pixel"), "SPIPA-B", 8 / 1000.0, 5),
+        # (Path("/Users/linus/Documents/porous_ice_campaign_april_2026_spipab_5mm_2/data/trans/single_pixel"), "SPIPA-B", 7.95 / 1000.0, 5),
+        # (Path("/Users/linus/Documents/porous_ice_campaign_april_2026_spipab_5mm_2b/data/trans/single_pixel"), "SPIPA-B", 7.95 / 1000.0, 5),
+        (Path("/Users/linus/Documents/porous_ice_campaign_april_2026_spipab_5mm_3/data/trans/single_pixel"), "SPIPA-B",
+         8.73 / 1000.0, 5),
+        (Path("/Users/linus/Documents/porous_ice_campaign_april_2026_spipab_5mm_3b/data/trans/single_pixel"), "SPIPA-B",
+         8.73 / 1000.0, 5),
+
+        # (Path("/Users/linus/Documents/porous_ice_campaign_april_2026_spipab_7.5mm/data/trans/single_pixel"), "SPIPA-B", 11.9 / 1000.0, 7.5),
+        (Path("/Users/linus/Documents/porous_ice_campaign_april_2026_spipab_7.5mm_2/data/trans/single_pixel"),
+         "SPIPA-B", 11.8 / 1000.0, 7.5),
+        (Path("/Users/linus/Documents/porous_ice_campaign_april_2026_spipab_7.5mm_2b/data/trans/single_pixel"),
+         "SPIPA-B", 11.8 / 1000.0, 7.5),
+        (Path("/Users/linus/Documents/porous_ice_campaign_april_2026_spipab_7.5mm_3/data/trans/single_pixel"),
+         "SPIPA-B", 11.7 / 1000.0, 7.5),
+        (Path("/Users/linus/Documents/porous_ice_campaign_april_2026_spipab_7.5mm_3b/data/trans/single_pixel"),
+         "SPIPA-B", 11.7 / 1000.0, 7.5),
+
+        # (Path("/Users/linus/Documents/porous_ice_campaign_april_2026_spipab_10mm/data/trans/single_pixel"), "SPIPA-B", 15.7 / 1000.0, 10.0),
+        (Path("/Users/linus/Documents/porous_ice_campaign_april_2026_spipab_10mm_2/data/trans/single_pixel"), "SPIPA-B",
+         15.3 / 1000.0, 10.0),
+        (Path("/Users/linus/Documents/porous_ice_campaign_april_2026_spipab_10mm_2b/data/trans/single_pixel"),
+         "SPIPA-B", 15.3 / 1000.0,
+         10.0),
+        (Path("/Users/linus/Documents/porous_ice_campaign_april_2026_spipab_10mm_3/data/trans/single_pixel"), "SPIPA-B",
+         14.8 / 1000.0, 10.0),
+        (Path("/Users/linus/Documents/porous_ice_campaign_april_2026_spipab_10mm_3b/data/trans/single_pixel"),
+         "SPIPA-B", 14.8 / 1000.0, 10.0),
+
+
+        # Frost
+        # (Path("/Users/linus/Documents/porous_ice_campaign_april_2026_coarse_snow_(frost)_5.0mm_3.7g_2c2_no_af2_moved/data/trans/single_pixel"),
+        #  "FROST", 3.7 / 1000.0, 5.0),
+        # (Path(
+        #     "/Users/linus/Documents/porous_ice_campaign_april_2026_coarse_snow_(frost)_5.0mm_3.7g_2c2_no_af2/data/trans/single_pixel"),
+        #  "FROST", 3.7 / 1000.0, 5.0),
+        # (Path(
+        #     "/Users/linus/Documents/porous_ice_campaign_april_2026_coarse_snow_(frost)_5.0mm_3.7g_2c2_no_af/data/trans/single_pixel"),
+        #  "FROST", 3.7 / 1000.0, 5.0),
+        # (Path(
+        #     "/Users/linus/Documents/porous_ice_campaign_april_2026_coarse_snow_(frost)_5.0mm_3.7g_1/data/trans/single_pixel"),
+        #  "FROST", 3.7 / 1000.0, 5.0),
+        # (Path(
+        #     "/Users/linus/Documents/porous_ice_campaign_april_2026_coarse_snow_(frost)_5.0mm_3.7g_2/data/trans/single_pixel"),
+        #  "FROST", 3.7 / 1000.0, 5.0),
+        (Path(
+            "/Users/linus/Documents/porous_ice_campaign_april_2026_coarse_snow_(frost)_5.0mm_3.7g_2b/data/trans/single_pixel"),
+         "FROST", 3.7 / 1000.0, 5.0),
+        # (Path(
+        #     "/Users/linus/Documents/porous_ice_campaign_april_2026_coarse_snow_(frost)_5.0mm_3.7g_2c/data/trans/single_pixel"),
+        #  "FROST", 3.7 / 1000.0, 5.0),
+        # (Path(
+        #     "/Users/linus/Documents/porous_ice_campaign_april_2026_coarse_snow_(frost)_5.0mm_3.7g_2c1/data/trans/single_pixel"),
+        #  "FROST", 3.7 / 1000.0, 5.0),
+        # (Path(
+        #     "/Users/linus/Documents/porous_ice_campaign_april_2026_coarse_snow_(frost)_5.0mm_3.7g_2c2/data/trans/single_pixel"),
+        #  "FROST", 3.7 / 1000.0, 5.0),
+
+        (Path("/Users/linus/Documents/porosity_july_2026_SPIPA-B_10.0mm_16.1g/data/trans/single_pixel"),
+         "SPIPA-B", 15.4 / 1000.0, 10.0),
+
+        # outlier
+        (Path("/Users/linus/Documents/porosity_july_2026_SPIPA-B_7.5mm_12.0g/data/trans/single_pixel"),
+        "SPIPA-B", 11.38 / 1000.0, 7.5),
+
+        (Path("/Users/linus/Documents/porosity_july_2026_SPIPA-B_5.0mm_8.6g/data/trans/single_pixel"),
+         "SPIPA-B", 7.99 / 1000.0, 5.0),
+        (Path("/Users/linus/Documents/porosity_july_2026_SPIPA-B_5.0mm_8.87g/data/trans/single_pixel"),
+         "SPIPA-B", 8.5 / 1000.0, 5.0),
+
+        (Path("/Users/linus/Documents/porosity_july_2026_SPIPA-B_7.5mm_12.7g/data/trans/single_pixel"),
+         "SPIPA-B", 12.28 / 1000.0, 7.5),
+
+        # outlier
+        (Path("/Users/linus/Documents/porosity_july_2026_SPIPA-B_10.0mm_15.8g/data/trans/single_pixel"),
+          "SPIPA-B", 15.8 / 1000.0, 10.0),
+
+        (Path("/Users/linus/Documents/porosity_july2_2026_SPIPA-B_5.0mm_8.69g/data/trans/single_pixel"),
+         "SPIPA-B", 8.39 / 1000.0, 5.0),
+        (Path("/Users/linus/Documents/porosity_july2_2026_SPIPA-B_7.5mm_12.8g/data/trans/single_pixel"),
+         "SPIPA-B", 12.6 / 1000.0, 7.5),
+        (Path("/Users/linus/Documents/porosity_july2_2026_SPIPA-B_10mm_16.2g/data/trans/single_pixel"),
+         "SPIPA-B", 16.0 / 1000.0, 10.0),
+
+        (Path("/Users/linus/Documents/porosity_july2_2026_SPIPA-B_+_Frost_(2g_+_6g)_7.5mm_8.0g/data/trans/single_pixel"),
+         "SPIPA-B + FROST", 7.6 / 1000.0, 7.5),
+        (Path("/Users/linus/Documents/porosity_july2_2026_SPIPA-B_+_Frost_(2.75g_+_6g)_10mm_8.75g/data/trans/single_pixel"),
+         "SPIPA-B + FROST", 8.75 / 1000.0, 10.0),
+        (Path("/Users/linus/Documents/porosity_july2_2026_SPIPA-B_+_Frost_(2g_+_5g)_7.5mm_7.1g/data/trans/single_pixel"),
+         "SPIPA-B + FROST", 7.2 / 1000.0, 7.5),
+
     ]
 
     freqs_solid, refractive_index_solid, complex_refractive_index_solid = get_refraction_index(t_solid, p_solid, t_ref,
@@ -206,6 +319,8 @@ if __name__ == '__main__':
     refractive_indices_err = []
     densities_err = []
 
+    colors = []
+
     for measurement in measurements:
         r_err = 0.0001
         h_err = 0.0005
@@ -226,16 +341,49 @@ if __name__ == '__main__':
         )
         # print(mass, volume, density, density_g_cm3)
 
-        t, p = get_thz_data(measurement[0])
+        t, p, p_r = get_thz_data(measurement[0])
 
-        freqs, refractive_index, complex_refractive_index = get_refraction_index(t, p, t_ref, p_ref,
-                                                                                 window_half_width=30,
-                                                                                 win_func="hanning",
-                                                                                 min_frequency=0.2, max_frequency=3,
-                                                                                 d_mm=measurement[3],
-                                                                                 mask_radius=None)
+        print(measurement[0], density_g_cm3)
+
+        if "april" in str(measurement[0]):
+            freqs, refractive_index, complex_refractive_index = get_refraction_index(t, p, t_ref_april, p_ref_april,
+                                                                                     window_half_width=30,
+                                                                                     win_func="hanning",
+                                                                                     min_frequency=0.2, max_frequency=3,
+                                                                                     d_mm=measurement[3],
+                                                                                     mask_radius=None)
+            colors.append("blue")
+        elif "july2" in str(measurement[0]):
+
+            freqs, refractive_index, complex_refractive_index = get_refraction_index(t, p, t_ref_july_2, p_ref_july_2,
+                                                                                     window_half_width=30,
+                                                                                     win_func="hanning",
+                                                                                     min_frequency=0.2, max_frequency=3,
+                                                                                     d_mm=measurement[3],
+                                                                                     mask_radius=None)
+            colors.append("cyan")
+        elif "july" in str(measurement[0]):
+
+            freqs, refractive_index, complex_refractive_index = get_refraction_index(t, p, t_ref_july, p_ref_july,
+                                                                                     window_half_width=30,
+                                                                                     win_func="hanning",
+                                                                                     min_frequency=0.2, max_frequency=3,
+                                                                                     d_mm=measurement[3],
+                                                                                     mask_radius=None)
+            colors.append("green")
+        else:
+
+            freqs, refractive_index, complex_refractive_index = get_refraction_index(t, p, t_ref, p_ref,
+                                                                                     window_half_width=30,
+                                                                                     win_func="hanning",
+                                                                                     min_frequency=0.2, max_frequency=3,
+                                                                                     d_mm=measurement[3],
+                                                                                     mask_radius=None)
+            colors.append("red")
 
         axes[0].plot(t, p, label=f"Porous = {density_g_cm3:.3f}")
+        if p_r is not None:
+            axes[0].plot(t, p_r, ls="--", label=f"Porous = {density_g_cm3:.3f}")
 
         axes[1].plot(freqs, refractive_index, label=f"Porous = {density_g_cm3:.3f}")
 
@@ -256,14 +404,18 @@ if __name__ == '__main__':
     axes[1].set_xlabel("Frequency (THz)")
     axes[1].set_ylabel("Refractive Index [-]")
 
+    plt.xlim(0, 1.5)
+    axes[0].legend()
+
     plt.show()
 
     # plt.style.use('dark_background')
 
     # plt.scatter(densities, refractive_indices, label="Measured data")
-    plt.errorbar(densities, refractive_indices, xerr=densities_err, yerr=refractive_indices_err, fmt='.', markeredgecolor="black", ecolor='black',
-                 marker="o",
-                 capthick=2, color="red", capsize=2, elinewidth=1, markeredgewidth=0.5, ms=5, label="Measured Data")
+    for d, r, d_e, r_e, c in zip(densities, refractive_indices, densities_err, refractive_indices_err, colors):
+        plt.errorbar(d, r, xerr=d_e, yerr=r_e, fmt='.', markeredgecolor="black", ecolor='black',
+                     marker="o",
+                     capthick=2, color=c, capsize=2, elinewidth=1, markeredgewidth=0.5, ms=5, label="Measured Data")
 
     plt.xlabel(r"Ice Density [g/cm$^3$]")
     plt.ylabel("Refractive Index @ 1 THz [-]")
