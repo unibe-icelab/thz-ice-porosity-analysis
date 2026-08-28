@@ -18,77 +18,77 @@
     "solid_ice_window_half_width": 25,
     "solid_ice_thickness_mm": 10.0,
     "solid_ice_density_g_cm3": 0.918,
-    "solid_ice_measurement_path": "/Users/linus/Documents/collimated_solid_ice_3a/data/single_pixel",
-    "solid_ice_reference_path": "/Users/linus/Documents/collimated_silicon_metal_sheet_fix_focus/data/single_pixel"
+    "solid_ice_measurement_path": "measurements/data/collimated_solid_ice_3a/data/single_pixel",
+    "solid_ice_reference_path": "measurements/data/collimated_silicon_metal_sheet_fix_focus/data/single_pixel"
   },
   "reference": {
-    "path": "/Users/linus/Documents/porosity_july_2026_silicon_ref_2/data/trans/single_pixel"
+    "path": "measurements/data/porosity_july_2026_silicon_ref_2/data/trans/single_pixel"
   },
   "measurements": [
     {
       "measurement_id": "spipa-b-5mm-8p69g",
       "label": "SPIPA-B",
-      "path": "/Users/linus/Documents/porosity_july2_2026_SPIPA-B_5.0mm_8.69g/data/trans/single_pixel",
+      "path": "measurements/data/porosity_july2_2026_SPIPA-B_5.0mm_8.69g/data/trans/single_pixel",
       "mass_kg": 0.00839,
       "mass_err_kg": 0.0001,
       "thickness_mm": 5.0,
       "thickness_err_mm": 0.2,
-      "reference_path": "/Users/linus/Documents/porosity_july_2026_silicon_ref_2/data/trans/single_pixel",
+      "reference_path": "measurements/data/porosity_july_2026_silicon_ref_2/data/trans/single_pixel",
       "ignore": false
     },
     {
       "measurement_id": "spipa-b-7p5mm-12p8g",
       "label": "SPIPA-B",
-      "path": "/Users/linus/Documents/porosity_july2_2026_SPIPA-B_7.5mm_12.8g/data/trans/single_pixel",
+      "path": "measurements/data/porosity_july2_2026_SPIPA-B_7.5mm_12.8g/data/trans/single_pixel",
       "mass_kg": 0.0126,
       "mass_err_kg": 0.0001,
       "thickness_mm": 7.5,
       "thickness_err_mm": 0.2,
-      "reference_path": "/Users/linus/Documents/porosity_july_2026_silicon_ref_2/data/trans/single_pixel",
+      "reference_path": "measurements/data/porosity_july_2026_silicon_ref_2/data/trans/single_pixel",
       "ignore": false
     },
     {
       "measurement_id": "spipa-b-10mm-16p2g",
       "label": "SPIPA-B",
-      "path": "/Users/linus/Documents/porosity_july2_2026_SPIPA-B_10mm_16.2g/data/trans/single_pixel",
+      "path": "measurements/data/porosity_july2_2026_SPIPA-B_10mm_16.2g/data/trans/single_pixel",
       "mass_kg": 0.016,
       "mass_err_kg": 0.0001,
       "thickness_mm": 10.0,
       "thickness_err_mm": 0.2,
-      "reference_path": "/Users/linus/Documents/porosity_july_2026_silicon_ref_2/data/trans/single_pixel",
+      "reference_path": "measurements/data/porosity_july_2026_silicon_ref_2/data/trans/single_pixel",
       "ignore": false
     },
     {
       "measurement_id": "spipa-b-plus-frost-7p5mm-8p0g",
       "label": "SPIPA-B + FROST",
-      "path": "/Users/linus/Documents/porosity_july2_2026_SPIPA-B_+_Frost_(2g_+_6g)_7.5mm_8.0g/data/trans/single_pixel",
+      "path": "measurements/data/porosity_july2_2026_SPIPA-B_+_Frost_(2g_+_6g)_7.5mm_8.0g/data/trans/single_pixel",
       "mass_kg": 0.0072,
       "mass_err_kg": 0.0001,
       "thickness_mm": 7.5,
       "thickness_err_mm": 0.2,
-      "reference_path": "/Users/linus/Documents/porosity_july_2026_silicon_ref_2/data/trans/single_pixel",
+      "reference_path": "measurements/data/porosity_july_2026_silicon_ref_2/data/trans/single_pixel",
       "ignore": true
     },
     {
       "measurement_id": "spipa-b-plus-frost-10mm-8p75g",
       "label": "SPIPA-B + FROST",
-      "path": "/Users/linus/Documents/porosity_july2_2026_SPIPA-B_+_Frost_(2.75g_+_6g)_10mm_8.75g/data/trans/single_pixel",
+      "path": "measurements/data/porosity_july2_2026_SPIPA-B_+_Frost_(2.75g_+_6g)_10mm_8.75g/data/trans/single_pixel",
       "mass_kg": 0.00875,
       "mass_err_kg": 0.0001,
       "thickness_mm": 10.0,
       "thickness_err_mm": 0.2,
-      "reference_path": "/Users/linus/Documents/porosity_july_2026_silicon_ref_2/data/trans/single_pixel",
+      "reference_path": "measurements/data/porosity_july_2026_silicon_ref_2/data/trans/single_pixel",
       "ignore": true
     },
     {
       "measurement_id": "spipa-b-plus-frost-7p5mm-7p1g",
       "label": "SPIPA-B + FROST",
-      "path": "/Users/linus/Documents/porosity_july2_2026_SPIPA-B_+_Frost_(2g_+_5g)_7.5mm_7.1g/data/trans/single_pixel",
+      "path": "measurements/data/porosity_july2_2026_SPIPA-B_+_Frost_(2g_+_5g)_7.5mm_7.1g/data/trans/single_pixel",
       "mass_kg": 0.0072,
       "mass_err_kg": 0.0001,
       "thickness_mm": 7.5,
       "thickness_err_mm": 0.2,
-      "reference_path": "/Users/linus/Documents/porosity_july_2026_silicon_ref_2/data/trans/single_pixel",
+      "reference_path": "measurements/data/porosity_july_2026_silicon_ref_2/data/trans/single_pixel",
       "ignore": true
     }
   ]

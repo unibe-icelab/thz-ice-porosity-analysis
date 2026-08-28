@@ -22,6 +22,41 @@ from skimage.measure import marching_cubes
 EPS_AIR = 1.0
 SOLID_ICE_DENSITY_G_CM3 = 0.918
 DEFAULT_EMT_MODEL = "bruggemann"
+PROJECT_ROOT = Path(__file__).resolve().parent
+MEASUREMENT_DATA_DIR = PROJECT_ROOT / "measurements" / "data"
+
+IMAGE_REFERENCE_PATH = (
+    MEASUREMENT_DATA_DIR
+    / "porosity_august3_2026_focused_silicon_reference/data/trans/single_pixel/1787033231.1361303_sp_data.thz"
+)
+SOLID_ICE_PATH = MEASUREMENT_DATA_DIR / "collimated_solid_ice_3a/data/single_pixel"
+SOLID_ICE_REFERENCE_PATH = (
+    MEASUREMENT_DATA_DIR / "collimated_silicon_metal_sheet_fix_focus/data/single_pixel"
+)
+
+IMAGE_INPUTS = {
+    "august2_frost": (
+        "Frost",
+        MEASUREMENT_DATA_DIR / "porosity_august2_2026_focused_frost_5.0mm_1.7g/data_image",
+    ),
+    "august2_hr_frost": (
+        "Frost HR",
+        MEASUREMENT_DATA_DIR / "porosity_august2_2026_hr_focused_frost_10.0mm_7.2g/data_image",
+    ),
+    "august3_hr_frost": (
+        "Frost HR",
+        MEASUREMENT_DATA_DIR / "porosity_august3_hr_2026_focused_frost_10.0mm_7.75g/data_image",
+    ),
+    "august2_uhr_frost": (
+        "Frost UHR",
+        MEASUREMENT_DATA_DIR / "porosity_august2_uhr_2026_focused_frost_10.0mm_7.2g/data_image",
+    ),
+    "august2_lr_frost": (
+        "Frost LR",
+        MEASUREMENT_DATA_DIR / "porosity_august2_lr_2026_focused_frost_10.0mm_7.2g/data_image",
+    ),
+}
+SELECTED_IMAGE = "august3_hr_frost"
 
 params = {"ytick.color":
               "black",
@@ -223,31 +258,13 @@ def porosity_from_emt_refractive_index(n_eff_map, n_ice_scalar, model=DEFAULT_EM
 
 
 if __name__ == "__main__":
-    # ref_path = Path("/Users/linus/Documents/comet_dust_pellet_HESSO_silicon_ref_vac_3/data_image")
-    #
-    # path = get_thz_file_from_path(ref_path)
-    #
-    # with DotthzFile(path) as psf_data:
-    #     key = list(psf_data.keys())[0]
-    #     datasets = psf_data[key].datasets
-    #
-    #     # from the first dataset, extract the image:
-    #     t_ref = np.array(datasets["time"])
-    #     traces_ref = np.array(datasets["dataset"])
-    #
-    # p_ref = np.mean(traces_ref, axis=(0, 1))
-
-    ref_path = Path(
-        "/Users/linus/Documents/porosity_august3_2026_focused_silicon_reference/data/trans/single_pixel/1787033231.1361303_sp_data.thz")
-    with DotthzFile(ref_path) as ref_file:
+    with DotthzFile(IMAGE_REFERENCE_PATH) as ref_file:
         sample = ref_file["Single Pixel 0"].datasets["Sample"][:]
         t_ref = sample[:, 0]
         p_ref = sample[:, 1]
 
-    solid_ice_path = Path("/Users/linus/Documents/collimated_solid_ice_3a/data/single_pixel")
-    solid_ice_ref_path = Path("/Users/linus/Documents/collimated_silicon_metal_sheet_fix_focus/data/single_pixel")
-    solid_ice_thz_path = get_thz_file_from_path(solid_ice_path)
-    solid_ice_ref_thz_path = get_thz_file_from_path(solid_ice_ref_path)
+    solid_ice_thz_path = get_thz_file_from_path(SOLID_ICE_PATH)
+    solid_ice_ref_thz_path = get_thz_file_from_path(SOLID_ICE_REFERENCE_PATH)
     with DotthzFile(solid_ice_thz_path) as solid_file:
         solid_sample = solid_file["Single Pixel 0"].datasets["Sample"][:]
         t_solid = solid_sample[:, 0]
@@ -257,20 +274,7 @@ if __name__ == "__main__":
         t_solid_ref = solid_ref_sample[:, 0]
         p_solid_ref = solid_ref_sample[:, 1]
 
-    # SPIPA-B ICE, low res, 38 deg phase angle
-    material, path = ("SPIPA-B", Path("/Users/linus/Documents/ICE_PEBBLE_CoDA_T3_dust_low_res_vac_trans_4/data_image"))
-
-    material, path = ("Frost", Path("/Users/linus/Documents/porosity_august2_2026_focused_frost_5.0mm_1.7g/data_image"))
-    material, path = ("Frost HR",
-                      Path("/Users/linus/Documents/porosity_august2_2026_hr_focused_frost_10.0mm_7.2g/data_image"))
-    material, path = ("Frost HR",
-                      Path("/Users/linus/Documents/porosity_august3_hr_2026_focused_frost_10.0mm_7.75g/data_image"))
-    # material, path = ("Frost UHR", Path("/Users/linus/Documents/porosity_august2_uhr_2026_focused_frost_10.0mm_7.2g/data_image"))
-    # material, path = ("Frost LR", Path("/Users/linus/Documents/porosity_august2_lr_2026_focused_frost_10.0mm_7.2g/data_image"))
-
-    # solid ICE, low res, 38 deg phase angle
-    # material, path = ("solid", Path("/Users/linus/Documents/ICE_PEBBLE_CoDA_T3_dust_low_res_vac_trans_5/data_image"))
-
+    material, path = IMAGE_INPUTS[SELECTED_IMAGE]
     path = get_thz_file_from_path(path)
 
     with DotthzFile(path) as psf_data:

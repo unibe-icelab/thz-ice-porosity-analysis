@@ -18,17 +18,17 @@
     "solid_ice_window_half_width": 25,
     "solid_ice_thickness_mm": 10.0,
     "solid_ice_density_g_cm3": 0.918,
-    "solid_ice_measurement_path": "/Users/linus/Documents/collimated_solid_ice_3a/data/single_pixel",
-    "solid_ice_reference_path": "/Users/linus/Documents/collimated_silicon_metal_sheet_fix_focus/data/single_pixel"
+    "solid_ice_measurement_path": "measurements/data/collimated_solid_ice_3a/data/single_pixel",
+    "solid_ice_reference_path": "measurements/data/collimated_silicon_metal_sheet_fix_focus/data/single_pixel"
   },
   "reference": {
-    "path": "/Users/linus/Documents/porosity_july3_2026_silicon_reference/data/trans/single_pixel"
+    "path": "measurements/data/porosity_july3_2026_silicon_reference/data/trans/single_pixel"
   },
   "measurements": [
     {
       "measurement_id": "frost-5mm-8p69g",
       "label": "FROST",
-      "path": "/Users/linus/Documents/porosity_july3_2026_Frost_5.0mm_1.98g/data/trans/single_pixel",
+      "path": "measurements/data/porosity_july3_2026_Frost_5.0mm_1.98g/data/trans/single_pixel",
       "mass_kg": 0.00186,
       "mass_err_kg": 0.0001,
       "thickness_mm": 5.0,
@@ -38,7 +38,7 @@
     {
       "measurement_id": "frost-5mm-8pddss",
       "label": "FROST",
-      "path": "/Users/linus/Documents/porosity_july3_2026_Frost_5.0mm_2.45g/data/trans/single_pixel",
+      "path": "measurements/data/porosity_july3_2026_Frost_5.0mm_2.45g/data/trans/single_pixel",
       "mass_kg": 0.0022,
       "mass_err_kg": 0.0001,
       "thickness_mm": 5.0,
@@ -48,7 +48,7 @@
     {
       "measurement_id": "frost-5mm-8sdff",
       "label": "FROST",
-      "path": "/Users/linus/Documents/porosity_july3_2026_Frost_5.0mm_2.93g/data/trans/single_pixel",
+      "path": "measurements/data/porosity_july3_2026_Frost_5.0mm_2.93g/data/trans/single_pixel",
       "mass_kg": 0.00272,
       "mass_err_kg": 0.0001,
       "thickness_mm": 5.0,
@@ -58,7 +58,7 @@
     {
       "measurement_id": "frost-5mm-asdfsa",
       "label": "FROST",
-      "path": "/Users/linus/Documents/porosity_july3_2026_Frost_5.0mm_4.85g/data/trans/single_pixel",
+      "path": "measurements/data/porosity_july3_2026_Frost_5.0mm_4.85g/data/trans/single_pixel",
       "mass_kg": 0.00467,
       "mass_err_kg": 0.0001,
       "thickness_mm": 5.0,
@@ -68,7 +68,7 @@
     {
       "measurement_id": "frost-10mm-sj894",
       "label": "FROST",
-      "path": "/Users/linus/Documents/porosity_july3_2026_Frost_10.0mm_3.71g/data/trans/single_pixel",
+      "path": "measurements/data/porosity_july3_2026_Frost_10.0mm_3.71g/data/trans/single_pixel",
       "mass_kg": 0.00346,
       "mass_err_kg": 0.0001,
       "thickness_mm": 10.0,
@@ -78,7 +78,7 @@
     {
       "measurement_id": "frost-7.5mm-4dfgb",
       "label": "FROST",
-      "path": "/Users/linus/Documents/porosity_july3_2026_Frost_7.5mm_3.46g/data/trans/single_pixel",
+      "path": "measurements/data/porosity_july3_2026_Frost_7.5mm_3.46g/data/trans/single_pixel",
       "mass_kg": 0.00339,
       "mass_err_kg": 0.0001,
       "thickness_mm": 7.5,
@@ -88,7 +88,7 @@
     {
       "measurement_id": "frost-5.0mm-jj9d8",
       "label": "FROST",
-      "path": "/Users/linus/Documents/porosity_july3_2026_Frost_5.0mm_3.4g/data/trans/single_pixel",
+      "path": "measurements/data/porosity_july3_2026_Frost_5.0mm_3.4g/data/trans/single_pixel",
       "mass_kg": 0.0034,
       "mass_err_kg": 0.0001,
       "thickness_mm": 5.0,
@@ -98,7 +98,7 @@
     {
       "measurement_id": "frost-5.0mm-345fsd",
       "label": "FROST",
-      "path": "/Users/linus/Documents/porosity_july3_2026_Frost_5.0mm_2.2g/data/trans/single_pixel",
+      "path": "measurements/data/porosity_july3_2026_Frost_5.0mm_2.2g/data/trans/single_pixel",
       "mass_kg": 0.0022,
       "mass_err_kg": 0.0001,
       "thickness_mm": 5.0,

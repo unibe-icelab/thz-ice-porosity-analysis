@@ -6,6 +6,7 @@ from pydotthz import DotthzFile
 
 from analyze_measurement_campaigns import (
     DEFAULT_CONFIG_DIR,
+    DEFAULT_DATA_DIR,
     DEFAULT_OUTPUT_DIR,
     get_refraction_index,
     get_thz_files,
@@ -15,9 +16,10 @@ from analyze_measurement_campaigns import (
 
 
 CAMPAIGN_CONFIG_PATH = DEFAULT_CONFIG_DIR / "july6_2026.json"
-VACUUM_PATH = Path("/Users/linus/Documents/porosity_july6_2026_frost_5.0mm_5.02g/data/trans/single_pixel")
-AMBIENT_PATH = Path(
-    "/Users/linus/Documents/porosity_july6_2026_frost_5.0mm_5.02g_ambient_pressure/data/trans/single_pixel"
+VACUUM_PATH = DEFAULT_DATA_DIR / "porosity_july6_2026_frost_5.0mm_5.02g/data/trans/single_pixel"
+AMBIENT_PATH = (
+    DEFAULT_DATA_DIR
+    / "porosity_july6_2026_frost_5.0mm_5.02g_ambient_pressure/data/trans/single_pixel"
 )
 
 
