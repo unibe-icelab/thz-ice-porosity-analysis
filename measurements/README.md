@@ -54,7 +54,7 @@ reporting statistics. The accompanying PNG and PDF files are retained as acquisi
 Paths stored in the configs are relative to the project root, for example:
 
 ```json
-"path": "measurements/data/porosity_july6_2026_frost_5.0mm_5.02g/data/trans/single_pixel"
+"path" : "measurements/data/porosity_july6_2026_frost_5.0mm_5.02g/data/trans/single_pixel"
 ```
 
 `analyze_measurement_campaigns.py` resolves these paths against the project root, so analysis commands can be started
