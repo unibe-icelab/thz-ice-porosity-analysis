@@ -1,7 +1,9 @@
 # Measurements
 
-This directory contains the THz-TDS measurement inputs, campaign configuration files, and generated analysis products
+This directory contains templates for the THz-TDS measurement inputs, campaign configuration files, and generated analysis products
 used by the scripts in the project root.
+
+You should either insert your own data in the `measurements/data/` subdirectories or pull the published data from the publication.
 
 ## Directory structure
 
