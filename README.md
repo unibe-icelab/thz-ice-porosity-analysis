@@ -4,9 +4,6 @@ This project analyzes terahertz time-domain spectroscopy (THz-TDS) measurements 
 refractive indices, compares solid-ice measurements with literature, estimates porosity with effective-medium theory (
 EMT), and visualizes spatially resolved measurements.
 
-Raw inputs and campaign metadata are stored in [`measurements`](measurements/README.md). Run the commands below from the
-project root unless noted otherwise.
-
 ## Environment
 
 Install dependencies with:
@@ -19,8 +16,8 @@ to set up the project.
 
 ## Data
 
-The `measurements_template` directory contains a template but no data. The data should be pulled from figshare, or
-alternatively your own data can be inserted in the `measurements/data/` subdirectories. The JSON configs in
+The `measurements_template` directory contains a template but no actual raw data. The data should be pulled from
+figshare, or alternatively your own data can be inserted in the `measurements/data/` subdirectories. The JSON configs in
 `measurements/configs/` point to the copied inputs in `measurements/data/`. See [
 `measurements/README.md`](measurements/README.md) for the complete directory and schema description.
 
