@@ -6,6 +6,8 @@ import pandas as pd
 
 from analyze_measurement_campaigns import (
     DEFAULT_CONFIG_DIR,
+    DEFAULT_OUTPUT_DIR,
+    PROJECT_ROOT,
     CampaignConfig,
     MeasurementConfig,
     get_refraction_index,
@@ -13,7 +15,7 @@ from analyze_measurement_campaigns import (
     read_trace,
 )
 
-LITERATURE_PATH = Path("ice_refractive_index.csv")
+LITERATURE_PATH = PROJECT_ROOT / "ice_refractive_index.csv"
 
 
 def load_literature_curve() -> pd.DataFrame:
@@ -78,6 +80,7 @@ def stack_curves(curves: list[dict[str, np.ndarray | str]]) -> tuple[np.ndarray,
 
 
 if __name__ == "__main__":
+    DEFAULT_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     plt.rcParams.update(
         {
             "font.size": 12,
@@ -136,6 +139,6 @@ if __name__ == "__main__":
     ax.grid(True, alpha=0.3)
     ax.legend(loc="center left", bbox_to_anchor=(1.02, 0.5))
     fig.tight_layout(rect=(0, 0, 0.95, 1))
-    plt.savefig("solid_ice.png")
-    plt.savefig("solid_ice.pdf")
+    fig.savefig(DEFAULT_OUTPUT_DIR / "solid_ice.png")
+    fig.savefig(DEFAULT_OUTPUT_DIR / "solid_ice.pdf")
     plt.show()

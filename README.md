@@ -6,13 +6,34 @@ Raw inputs and campaign metadata are stored in [`measurements`](measurements/REA
 
 ## Environment
 
-The analysis uses Python plus `numpy`, `matplotlib`, `pandas`, `pydotthz`, and `thzpy`. The imaging workflow additionally imports `cmcrameri`, `plotly`, `shapely`, `pyvista`, and `scikit-image`. The local `thz-analysis` package declares the core THz dependencies and can be installed in editable mode:
+Install dependencies with:
 
 ```bash
-python -m pip install -e thz-analysis
+uv sync
 ```
 
-Install the remaining plotting and imaging packages in the same environment as required. The repository currently does not provide a single root-level dependency lock file.
+to set up the project.
+
+## `analyze_measurement_campaigns.py`
+
+This is the shared config loader and campaign-analysis module. It defines the campaign, measurement, and analysis data structures used by the other scripts; resolves config paths against the project root; reads and averages `.thz` traces; calculates density and refractive index; and provides the effective-medium model helpers.
+
+When run directly, it analyzes every JSON config in `measurements/configs/` by default. It creates a time-trace and refractive-index overview for each campaign, a combined refractive-index-versus-density plot with shared EMT curves, and `campaign_analysis_summary.csv` in `measurements/output/`.
+
+```bash
+python analyze_measurement_campaigns.py
+```
+
+Analyze selected configs or change the output directory with:
+
+```bash
+python analyze_measurement_campaigns.py \
+  --config measurements/configs/july6_2026.json \
+  --output-dir measurements/output \
+  --show
+```
+
+Without `--show`, figures are saved and closed without opening interactive windows. Other root-level analysis scripts import this file, so it should remain in the project root.
 
 ## `analyze_porosity_emt.py`
 
@@ -43,7 +64,7 @@ This script loads every campaign config, selects non-ignored measurements labele
 python compare_solid_ice.py
 ```
 
-It writes `solid_ice.png` and `solid_ice.pdf` in the project root and opens the plot interactively. Because the literature CSV is addressed relative to the working directory, run this script from the project root.
+It writes `solid_ice.png` and `solid_ice.pdf` to `measurements/output/` and opens the plot interactively. Both the literature CSV and output directory are resolved relative to the script location, so the script also works when launched from another working directory.
 
 ## `vacuum_vs_ambient_pressure.py`
 
@@ -71,7 +92,12 @@ Available keys are `august2_frost`, `august2_hr_frost`, `august3_hr_frost`, `aug
 python refractive_index_image.py
 ```
 
-The script displays intermediate traces and spectra, prints ROI refractive-index/porosity statistics, and saves the final map in PNG and PDF form in the current working directory. The output name includes the selected material label. See [`measurements/README.md`](measurements/README.md#refractive-index-image-data) for the image-acquisition table and raw-data structure.
+The script displays intermediate traces and spectra, prints ROI refractive-index/porosity statistics, and saves the final PNG and PDF maps to `measurements/output/`. The output name includes the selected material label. See [`measurements/README.md`](measurements/README.md#refractive-index-image-data) for the image-acquisition table and raw-data structure.
+
+## `scicolorscales.py`
+
+This is a supporting data module containing Fabio Crameri scientific color maps converted to Plotly colorscale lists. Each exported variable, such as `vik`, `acton`, or `lapaz`, is a list of normalized positions and RGB color strings that can be passed to Plotly as a `colorscale`.
+
 
 ## Config-driven measurement data
 

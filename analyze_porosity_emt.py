@@ -26,7 +26,6 @@ from analyze_measurement_campaigns import (
     read_trace_cached,
 )
 
-
 EMT_MODELS = ("bruggemann",)
 
 
@@ -86,8 +85,8 @@ def read_embedded_ref_trace(path: Path) -> Tuple[np.ndarray, np.ndarray]:
 
 
 def read_embedded_ref_trace_cached(
-    path: Path,
-    cache: Dict[Path, Tuple[np.ndarray, np.ndarray]],
+        path: Path,
+        cache: Dict[Path, Tuple[np.ndarray, np.ndarray]],
 ) -> Tuple[np.ndarray, np.ndarray]:
     if path not in cache:
         cache[path] = read_embedded_ref_trace(path)
@@ -119,11 +118,11 @@ def shift_trace(time_axis: np.ndarray, trace: np.ndarray, shift_ps: float) -> np
 
 
 def compensate_sample_trace_from_embedded_refs(
-    measurement_path: Path,
-    reference_path: Path,
-    sample_time: np.ndarray,
-    sample_trace: np.ndarray,
-    embedded_ref_cache: Dict[Path, Tuple[np.ndarray, np.ndarray]],
+        measurement_path: Path,
+        reference_path: Path,
+        sample_time: np.ndarray,
+        sample_trace: np.ndarray,
+        embedded_ref_cache: Dict[Path, Tuple[np.ndarray, np.ndarray]],
 ) -> np.ndarray:
     try:
         reference_ref_t, reference_ref_p = read_embedded_ref_trace_cached(reference_path, embedded_ref_cache)
@@ -132,8 +131,8 @@ def compensate_sample_trace_from_embedded_refs(
         return sample_trace
 
     if (
-        measurement_ref_t.shape != reference_ref_t.shape
-        or not np.allclose(measurement_ref_t, reference_ref_t)
+            measurement_ref_t.shape != reference_ref_t.shape
+            or not np.allclose(measurement_ref_t, reference_ref_t)
     ):
         measurement_ref_p = np.interp(reference_ref_t, measurement_ref_t, measurement_ref_p)
         measurement_ref_t = reference_ref_t
@@ -161,7 +160,7 @@ def maxwell_garnett_vi(epsilon_eff: complex, epsilon_host: complex, epsilon_ice:
 
 def lll_vi(epsilon_eff: complex, epsilon_host: complex, epsilon_ice: complex) -> complex:
     return (np.power(epsilon_eff, 1 / 3) - np.power(epsilon_host, 1 / 3)) / (
-        np.power(epsilon_ice, 1 / 3) - np.power(epsilon_host, 1 / 3)
+            np.power(epsilon_ice, 1 / 3) - np.power(epsilon_host, 1 / 3)
     )
 
 
@@ -205,7 +204,8 @@ def invert_volume_fraction(model: str, epsilon_eff: complex, epsilon_ice: comple
     return float(np.clip(np.real(value), 0.0, 1.0))
 
 
-def forward_emt_curve(model: str, solid_ice_complex_index: complex, solid_ice_density_g_cm3: float) -> Tuple[np.ndarray, np.ndarray]:
+def forward_emt_curve(model: str, solid_ice_complex_index: complex, solid_ice_density_g_cm3: float) -> Tuple[
+    np.ndarray, np.ndarray]:
     density_axis = np.linspace(0.0, solid_ice_density_g_cm3, 300)
     volume_fraction_ice = np.clip(density_axis / solid_ice_density_g_cm3, 0.0, 1.0)
     eps_ice = solid_ice_complex_index ** 2
@@ -331,7 +331,8 @@ def calibrate_shared_solid_ice(measurements: List[OpticalMeasurement]) -> Tuple[
             f"No measurements above {SOLID_ICE_DENSITY_THRESHOLD_G_CM3:.1f} g/cm^3 available for EMT calibration."
         )
 
-    mean_complex_index = complex(np.mean([measurement.complex_refractive_index_at_1thz for measurement in solid_measurements]))
+    mean_complex_index = complex(
+        np.mean([measurement.complex_refractive_index_at_1thz for measurement in solid_measurements]))
     mean_density_g_cm3 = float(np.mean([measurement.density_g_cm3 for measurement in solid_measurements]))
     if len(solid_measurements) > 1:
         density_std_g_cm3 = float(np.std([measurement.density_g_cm3 for measurement in solid_measurements], ddof=1))
@@ -349,9 +350,9 @@ def calibrate_shared_solid_ice(measurements: List[OpticalMeasurement]) -> Tuple[
 
 
 def estimate_porosity(
-    measurement: OpticalMeasurement,
-    model: str,
-    epsilon_ice: complex,
+        measurement: OpticalMeasurement,
+        model: str,
+        epsilon_ice: complex,
 ) -> PorosityEstimate:
     epsilon_eff = measurement.complex_refractive_index_at_1thz ** 2
     volume_fraction_ice = invert_volume_fraction(model, epsilon_eff, epsilon_ice)
@@ -378,11 +379,11 @@ def estimate_porosity(
 
 
 def plot_summary_figure(
-    measurements: Sequence[OpticalMeasurement],
-    solid_ice_complex_index: complex,
-    solid_ice_density_g_cm3: float,
-    bruggemann_estimates: Sequence[PorosityEstimate],
-    output_path: Path,
+        measurements: Sequence[OpticalMeasurement],
+        solid_ice_complex_index: complex,
+        solid_ice_density_g_cm3: float,
+        bruggemann_estimates: Sequence[PorosityEstimate],
+        output_path: Path,
 ) -> plt.Figure:
     fig, axes = plt.subplots(ncols=2, figsize=(13, 5), constrained_layout=True)
     ax_forward, ax_residual = axes
@@ -447,9 +448,9 @@ def plot_summary_figure(
 
 
 def write_measurement_summary(
-    measurements: Sequence[OpticalMeasurement],
-    estimates_by_model: Dict[str, List[PorosityEstimate]],
-    output_path: Path,
+        measurements: Sequence[OpticalMeasurement],
+        estimates_by_model: Dict[str, List[PorosityEstimate]],
+        output_path: Path,
 ) -> None:
     with output_path.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.writer(handle)
@@ -489,8 +490,8 @@ def write_measurement_summary(
 
 
 def write_model_metrics(
-    estimates_by_model: Dict[str, List[PorosityEstimate]],
-    output_path: Path,
+        estimates_by_model: Dict[str, List[PorosityEstimate]],
+        output_path: Path,
 ) -> None:
     with output_path.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.writer(handle)
@@ -528,11 +529,11 @@ def main() -> None:
 
     figures = [
         plot_summary_figure(
-        measurements,
-        solid_ice_complex_index,
-        solid_ice_density_g_cm3,
-        estimates_by_model["bruggemann"],
-        args.output_dir / "emt_bruggemann_summary.pdf",
+            measurements,
+            solid_ice_complex_index,
+            solid_ice_density_g_cm3,
+            estimates_by_model["bruggemann"],
+            args.output_dir / "emt_bruggemann_summary.pdf",
         ),
     ]
     write_measurement_summary(
@@ -546,7 +547,6 @@ def main() -> None:
     )
 
     plt.show()
-
 
 
 params = {"ytick.color":

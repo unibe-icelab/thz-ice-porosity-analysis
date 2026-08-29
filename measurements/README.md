@@ -24,7 +24,7 @@ measurement software; these are retained alongside the raw `.thz` files.
 The two layouts in use are:
 
 - `data/<acquisition>/data/single_pixel/` for the legacy collimated measurements.
-- `data/<acquisition>/data/trans/single_pixel/` for the April and July transmission campaigns.
+- `data/<acquisition>/data/trans/single_pixel/` for the July transmission campaigns.
 - `data/<acquisition>/data_image/` for spatially resolved image cubes used by `refractive_index_image.py`.
 
 ## Refractive-index image data
@@ -91,7 +91,9 @@ Each item in `measurements` contains:
 - `mass_kg`, `mass_err_kg`, `thickness_mm`, and `thickness_err_mm`: sample properties and uncertainties.
 - `ignore`: when `true`, campaign analyses skip the measurement while retaining its metadata.
     - files are ignored, if there have been issues during the measurement, often visible either in frequency domain when
-      looking at the refractive index. This is likely due to a misalignment or errors in sample preparation.
+      looking at the refractive index. This is likely due to a misalignment or errors in sample preparation. For
+      example: samples with frost + SPIPA-B mixed are ignored because they had clumps that were visible and lead to
+      massive scattering.
 
 Note: the `.thz` raw files also contain mass and thickness values, but the more accurate ones are in the `config` files.
 To analyze all configs, run from the project root:

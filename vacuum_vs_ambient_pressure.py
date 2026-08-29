@@ -14,12 +14,11 @@ from analyze_measurement_campaigns import (
     read_trace,
 )
 
-
 CAMPAIGN_CONFIG_PATH = DEFAULT_CONFIG_DIR / "july6_2026.json"
 VACUUM_PATH = DEFAULT_DATA_DIR / "porosity_july6_2026_frost_5.0mm_5.02g/data/trans/single_pixel"
 AMBIENT_PATH = (
-    DEFAULT_DATA_DIR
-    / "porosity_july6_2026_frost_5.0mm_5.02g_ambient_pressure/data/trans/single_pixel"
+        DEFAULT_DATA_DIR
+        / "porosity_july6_2026_frost_5.0mm_5.02g_ambient_pressure/data/trans/single_pixel"
 )
 
 

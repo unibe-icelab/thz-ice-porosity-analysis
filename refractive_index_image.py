@@ -1,6 +1,5 @@
 # python
 import ast
-import os
 from pathlib import Path
 from typing import Dict, Optional
 
@@ -8,30 +7,29 @@ from cmcrameri import cm
 from matplotlib import pyplot as plt
 from matplotlib.colors import Normalize
 from matplotlib.patches import Polygon as MplPolygon
-from plotly.subplots import make_subplots
 from pydotthz import DotthzFile
 from shapely.geometry import Point, Polygon
 from thzpy.timedomain import common_window
 from thzpy.transferfunctions import uniform_slab
 from scicolorscales import vik
 
-import pyvista as pv
 import numpy as np
-from skimage.measure import marching_cubes
 
 EPS_AIR = 1.0
 SOLID_ICE_DENSITY_G_CM3 = 0.918
 DEFAULT_EMT_MODEL = "bruggemann"
 PROJECT_ROOT = Path(__file__).resolve().parent
-MEASUREMENT_DATA_DIR = PROJECT_ROOT / "measurements" / "data"
+MEASUREMENT_DIR = PROJECT_ROOT / "measurements"
+MEASUREMENT_DATA_DIR = MEASUREMENT_DIR / "data"
+OUTPUT_DIR = MEASUREMENT_DIR / "output"
 
 IMAGE_REFERENCE_PATH = (
-    MEASUREMENT_DATA_DIR
-    / "porosity_august3_2026_focused_silicon_reference/data/trans/single_pixel/1787033231.1361303_sp_data.thz"
+        MEASUREMENT_DATA_DIR
+        / "porosity_august3_2026_focused_silicon_reference/data/trans/single_pixel/1787033231.1361303_sp_data.thz"
 )
 SOLID_ICE_PATH = MEASUREMENT_DATA_DIR / "collimated_solid_ice_3a/data/single_pixel"
 SOLID_ICE_REFERENCE_PATH = (
-    MEASUREMENT_DATA_DIR / "collimated_silicon_metal_sheet_fix_focus/data/single_pixel"
+        MEASUREMENT_DATA_DIR / "collimated_silicon_metal_sheet_fix_focus/data/single_pixel"
 )
 
 IMAGE_INPUTS = {
@@ -85,10 +83,11 @@ params = {"ytick.color":
 plt.rcParams.update(params)
 
 
-def get_thz_file_from_path(path: Path):
-    for file in os.listdir(path):
-        if file.endswith("_data.thz"):
-            return path.joinpath(file)
+def get_thz_file_from_path(path: Path) -> Path:
+    matches = sorted(path.glob("*_data.thz"))
+    if not matches:
+        raise FileNotFoundError(f"No *_data.thz file found in {path}")
+    return matches[0]
 
 
 def extract_rois(path: Path, measurement_key: Optional[str] = None) -> Dict[str, Dict[str, object]]:
@@ -258,6 +257,7 @@ def porosity_from_emt_refractive_index(n_eff_map, n_ice_scalar, model=DEFAULT_EM
 
 
 if __name__ == "__main__":
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     with DotthzFile(IMAGE_REFERENCE_PATH) as ref_file:
         sample = ref_file["Single Pixel 0"].datasets["Sample"][:]
         t_ref = sample[:, 0]
@@ -366,7 +366,7 @@ if __name__ == "__main__":
 
     print("True Porosity: ")
     A = 604.102  # mm^2
-    d = 10 # mm
+    d = 10  # mm
     d_err = 0.1  # mm
     V = A * d  # mm^3
     m = 1.2  # g
@@ -374,7 +374,7 @@ if __name__ == "__main__":
     for i in range(4):
         mass = m + 0.5 * i  # g
         rho = mass / V * 1000  # g/cm^3
-        rho_err = np.sqrt((1 / V * 1000 * m_err ) ** 2 + (mass / (A * d ** 2) * 1000 * d_err) ** 2)  # g/cm^3
+        rho_err = np.sqrt((1 / V * 1000 * m_err) ** 2 + (mass / (A * d ** 2) * 1000 * d_err) ** 2)  # g/cm^3
 
         print(
             f"ROI {i + 1}: "
@@ -443,6 +443,6 @@ if __name__ == "__main__":
     axes[1].set_xticks(range(0, int(x_max - x_min + 1), 10))
     axes[1].set_yticks(range(0, int(y_max - y_min + 1), 10))
 
-    fig.savefig(f"frost_transmission_{material}_inv_and_porosity.png", dpi=300)
-    fig.savefig(f"frost_transmission_{material}_inv_and_porosity.pdf")
+    fig.savefig(OUTPUT_DIR / f"frost_transmission_{material}_inv_and_porosity.png", dpi=300)
+    fig.savefig(OUTPUT_DIR / f"frost_transmission_{material}_inv_and_porosity.pdf")
     plt.show()
