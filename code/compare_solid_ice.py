@@ -6,8 +6,8 @@ import pandas as pd
 
 from analyze_measurement_campaigns import (
     DEFAULT_CONFIG_DIR,
+    DEFAULT_DATA_ROOT,
     DEFAULT_OUTPUT_DIR,
-    PROJECT_ROOT,
     CampaignConfig,
     MeasurementConfig,
     get_refraction_index,
@@ -15,7 +15,7 @@ from analyze_measurement_campaigns import (
     read_trace,
 )
 
-LITERATURE_PATH = PROJECT_ROOT / "ice_refractive_index.csv"
+LITERATURE_PATH = DEFAULT_DATA_ROOT / "ice_refractive_index.csv"
 
 
 def load_literature_curve() -> pd.DataFrame:

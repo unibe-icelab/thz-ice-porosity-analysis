@@ -13,11 +13,12 @@ from pydotthz import DotthzFile
 from thzpy.timedomain import common_window
 from thzpy.transferfunctions import uniform_slab
 
-PROJECT_ROOT = Path(__file__).resolve().parent
-DEFAULT_MEASUREMENT_DIR = PROJECT_ROOT / "measurements"
-DEFAULT_DATA_DIR = DEFAULT_MEASUREMENT_DIR / "data"
-DEFAULT_CONFIG_DIR = DEFAULT_MEASUREMENT_DIR / "configs"
-DEFAULT_OUTPUT_DIR = DEFAULT_MEASUREMENT_DIR / "output"
+CODE_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = CODE_DIR.parent
+DEFAULT_DATA_ROOT = PROJECT_ROOT / "data"
+DEFAULT_DATA_DIR = DEFAULT_DATA_ROOT / "raw"
+DEFAULT_CONFIG_DIR = DEFAULT_DATA_ROOT / "configs"
+DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "results"
 TRACE_TIME_MIN_PS = 1860
 TRACE_TIME_MAX_PS = 1960
 EPS_AIR = 1.0

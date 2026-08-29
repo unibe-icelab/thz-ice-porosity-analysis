@@ -1,39 +1,41 @@
-# Measurements
+# Data template
 
-This directory contains templates for the THz-TDS measurement inputs, campaign configuration files, and generated analysis products
-used by the scripts in the project root.
+This directory is a lightweight template for the THz-TDS raw-data and campaign-config layout used by the scripts in
+`code/`. Generated analysis products are written to the project-level `results/` directory and are not part of this
+template.
 
-You should either insert your own data in the `measurements/data/` subdirectories or pull the published data from the publication.
+Copy the template contents into `data/`, then insert your own acquisitions below `data/raw/` or download the published
+dataset from Figshare.
 
 ## Directory structure
 
 ```text
-measurements/
+data_template/
 ├── configs/                 Campaign descriptions and analysis settings (JSON)
-├── data/                    Copied measurement acquisitions
+├── raw/                     Measurement acquisition placeholders
 │   └── <acquisition>/
 │       ├── data/
 │       │   ├── single_pixel/
 │       │   └── trans/single_pixel/
 │       └── data_image/
-└── output/                  Generated figures, tables, and NumPy arrays
+└── README.md
 ```
 
-Each directory below `data/` keeps the original acquisition name. The JSON configs point to a `single_pixel` directory
+Each directory below `raw/` keeps the original acquisition name. The JSON configs point to a `single_pixel` directory
 containing one or more `.thz` files. Some acquisitions also contain `.png` and `.pdf` exports produced by the
 measurement software; these are retained alongside the raw `.thz` files.
 
 The two layouts in use are:
 
-- `data/<acquisition>/data/single_pixel/` for the legacy collimated measurements.
-- `data/<acquisition>/data/trans/single_pixel/` for the July transmission campaigns.
-- `data/<acquisition>/data_image/` for spatially resolved image cubes used by `refractive_index_image.py`.
+- `raw/<acquisition>/data/single_pixel/` for the legacy collimated measurements.
+- `raw/<acquisition>/data/trans/single_pixel/` for the July transmission campaigns.
+- `raw/<acquisition>/data_image/` for spatially resolved image cubes used by `code/refractive_index_image.py`.
 
 ## Refractive-index image data
 
-The raw inputs referenced by `refractive_index_image.py` are included in `data/`. The default selection is the August 3
-high-resolution frost image. Alternative image resolutions can be selected with the `SELECTED_IMAGE` constant in that
-script.
+The full published dataset supplies the image inputs referenced by `code/refractive_index_image.py`. The default
+selection is the August 3 high-resolution frost image. Alternative image resolutions can be selected with the
+`SELECTED_IMAGE` constant in that script.
 
 | Selection key       | Acquisition                                           | Material label |
 |---------------------|-------------------------------------------------------|----------------|
@@ -56,10 +58,10 @@ reporting statistics. The accompanying PNG and PDF files are retained as acquisi
 Paths stored in the configs are relative to the project root, for example:
 
 ```json
-"path" : "measurements/data/porosity_july6_2026_frost_5.0mm_5.02g/data/trans/single_pixel"
+"path" : "data/raw/porosity_july6_2026_frost_5.0mm_5.02g/data/trans/single_pixel"
 ```
 
-`analyze_measurement_campaigns.py` resolves these paths against the project root, so analysis commands can be started
+`code/analyze_measurement_campaigns.py` resolves these paths against the project root, so analysis commands can be started
 from another working directory as well.
 
 ## Campaign config files
@@ -101,13 +103,13 @@ Note: the `.thz` raw files also contain mass and thickness values, but the more 
 To analyze all configs, run from the project root:
 
 ```bash
-python analyze_measurement_campaigns.py
+python code/analyze_measurement_campaigns.py
 ```
 
 To select one config:
 
 ```bash
-python analyze_measurement_campaigns.py --config measurements/configs/july6_2026.json
+python code/analyze_measurement_campaigns.py --config data/configs/july6_2026.json
 ```
 
-Outputs are written to `measurements/output/` by default and can be displayed with the `--show` argument.
+Outputs are written to `results/` by default and can be displayed with the `--show` argument.

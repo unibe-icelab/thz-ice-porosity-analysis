@@ -16,10 +16,22 @@ to set up the project.
 
 ## Data
 
-The `measurements_template` directory contains a template but no actual raw data. The data should be pulled from
-figshare, or alternatively your own data can be inserted in the `measurements/data/` subdirectories. The JSON configs in
-`measurements/configs/` point to the copied inputs in `measurements/data/`. See [
-`measurements/README.md`](measurements/README.md) for the complete directory and schema description.
+The `data/` directory contains campaign configs, raw THz acquisitions, the literature refractive-index table, and
+supporting inputs. The `data_template/` directory provides a small template for creating or distributing the same
+layout without the full raw dataset. Data can be obtained from Figshare or replaced with acquisitions using the same
+structure. See [`data/README.md`](data/README.md) for the complete layout and config schema.
+
+## Project structure
+
+```text
+code/          Python analysis code
+data/          Configs, raw measurements, and supporting input data
+results/       Generated figures, tables, and arrays
+data_template/ Empty data layout
+```
+
+All commands below are run from the project root. The scripts resolve bundled input and output paths from their own
+location, so they can also be launched using absolute paths from another working directory.
 
 ## `analyze_measurement_campaigns.py`
 
@@ -27,25 +39,25 @@ This is the shared config loader and campaign-analysis module. It defines the ca
 structures used by the other scripts; resolves config paths against the project root; reads and averages `.thz` traces;
 calculates density and refractive index; and provides the effective-medium model helpers.
 
-When run directly, it analyzes every JSON config in `measurements/configs/` by default. It creates a time-trace and
+When run directly, it analyzes every JSON config in `data/configs/` by default. It creates a time-trace and
 refractive-index overview for each campaign, a combined refractive-index-versus-density plot with shared EMT curves, and
-`campaign_analysis_summary.csv` in `measurements/output/`.
+`campaign_analysis_summary.csv` in `results/`.
 
 ```bash
-python analyze_measurement_campaigns.py
+python code/analyze_measurement_campaigns.py
 ```
 
 Analyze selected configs or change the output directory with:
 
 ```bash
-python analyze_measurement_campaigns.py \
-  --config measurements/configs/july6_2026.json \
-  --output-dir measurements/output \
+python code/analyze_measurement_campaigns.py \
+  --config data/configs/july6_2026.json \
+  --output-dir results \
   --show
 ```
 
-Without `--show`, figures are saved and closed without opening interactive windows. Other root-level analysis scripts
-import this file, so it should remain in the project root.
+Without `--show`, figures are saved and closed without opening interactive windows. Other active analysis scripts
+import this module from `code/`, so it should remain alongside them.
 
 ## `analyze_porosity_emt.py`
 
@@ -58,16 +70,16 @@ inverted to estimate porosity.
 Run all configured campaigns:
 
 ```bash
-python analyze_porosity_emt.py
+python code/analyze_porosity_emt.py
 ```
 
 Run selected campaigns or choose another output directory:
 
 ```bash
-python analyze_porosity_emt.py \
-  --config measurements/configs/july3.5_2026.json \
-  --config measurements/configs/july4_2026.json \
-  --output-dir measurements/output
+python code/analyze_porosity_emt.py \
+  --config data/configs/july3.5_2026.json \
+  --config data/configs/july4_2026.json \
+  --output-dir results
 ```
 
 The script writes `emt_bruggemann_summary.pdf`, `emt_porosity_measurements.csv`, and `emt_porosity_model_metrics.csv`.
@@ -80,10 +92,10 @@ refractive-index spectra, and compares them with `ice_refractive_index.csv` (Tao
 curve plus their mean between 0.8 and 2.0 THz.
 
 ```bash
-python compare_solid_ice.py
+python code/compare_solid_ice.py
 ```
 
-It writes `solid_ice.png` and `solid_ice.pdf` to `measurements/output/` and opens the plot interactively. Both the
+It writes `solid_ice.png` and `solid_ice.pdf` to `results/` and opens the plot interactively. Both the
 literature CSV and output directory are resolved relative to the script location, so the script also works when launched
 from another working directory.
 
@@ -94,11 +106,11 @@ ambient-pressure sample traces, estimates timing drift from each file's embedded
 trace, and compares the resulting refractive-index spectra.
 
 ```bash
-python vacuum_vs_ambient_pressure.py
+python code/vacuum_vs_ambient_pressure.py
 ```
 
-The configured acquisition paths point into `measurements/data`. The script writes `vacuum_vs_ambient_pressure.png` and
-`.pdf` to `measurements/output/` and opens the figure interactively.
+The configured acquisition paths point into `data/raw`. The script writes `vacuum_vs_ambient_pressure.png` and
+`.pdf` to `results/` and opens the figure interactively.
 
 ## `refractive_index_image.py`
 
@@ -107,7 +119,7 @@ refractive-index spectrum per pixel, averages the 0.9–1.1 THz band into a map,
 Bruggemann EMT model, and reports ROI statistics. A collimated solid-ice/reference pair provides the solid-ice optical
 calibration.
 
-The raw image acquisitions, silicon reference, and solid-ice calibration data are included in `measurements/data`, and
+The raw image acquisitions, silicon reference, and solid-ice calibration data are included in `data/raw`, and
 the script builds all paths relative to its own project directory. Choose an image by changing the module-level
 selection constant to one of the keys in `IMAGE_INPUTS`:
 
@@ -121,12 +133,12 @@ sample thickness, mask center/radius, ROI labels, and true-porosity mass assumpt
 acquisition.
 
 ```bash
-python refractive_index_image.py
+python code/refractive_index_image.py
 ```
 
 The script displays intermediate traces and spectra, prints ROI refractive-index/porosity statistics, and saves the
-final PNG and PDF maps to `measurements/output/`. The output name includes the selected material label. See [
-`measurements/README.md`](measurements/README.md#refractive-index-image-data) for the image-acquisition table and
+final PNG and PDF maps to `results/`. The output name includes the selected material label. See [
+`data/README.md`](data/README.md#refractive-index-image-data) for the image-acquisition table and
 raw-data structure.
 
 ## `scicolorscales.py`
@@ -137,6 +149,6 @@ can be passed to Plotly as a `colorscale`.
 
 ## Config-driven measurement data
 
-The portable JSON configs live in `measurements/configs/`; all their paths resolve to copied inputs in
-`measurements/data/`. See [`measurements/README.md`](measurements/README.md) for the complete directory and schema
-description.
+The portable JSON configs live in `data/configs/`; all their paths resolve to inputs in `data/raw/`. Generated files
+belong in `results/` and are never written below `data/`. See [`data/README.md`](data/README.md) for the complete
+directory and schema description.

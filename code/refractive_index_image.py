@@ -12,46 +12,45 @@ from shapely.geometry import Point, Polygon
 from thzpy.timedomain import common_window
 from thzpy.transferfunctions import uniform_slab
 from scicolorscales import vik
+from analyze_measurement_campaigns import DEFAULT_DATA_DIR, DEFAULT_OUTPUT_DIR
 
 import numpy as np
 
 EPS_AIR = 1.0
 SOLID_ICE_DENSITY_G_CM3 = 0.918
 DEFAULT_EMT_MODEL = "bruggemann"
-PROJECT_ROOT = Path(__file__).resolve().parent
-MEASUREMENT_DIR = PROJECT_ROOT / "measurements"
-MEASUREMENT_DATA_DIR = MEASUREMENT_DIR / "data"
-OUTPUT_DIR = MEASUREMENT_DIR / "output"
+RAW_DATA_DIR = DEFAULT_DATA_DIR
+OUTPUT_DIR = DEFAULT_OUTPUT_DIR
 
 IMAGE_REFERENCE_PATH = (
-        MEASUREMENT_DATA_DIR
+        RAW_DATA_DIR
         / "porosity_august3_2026_focused_silicon_reference/data/trans/single_pixel/1787033231.1361303_sp_data.thz"
 )
-SOLID_ICE_PATH = MEASUREMENT_DATA_DIR / "collimated_solid_ice_3a/data/single_pixel"
+SOLID_ICE_PATH = RAW_DATA_DIR / "collimated_solid_ice_3a/data/single_pixel"
 SOLID_ICE_REFERENCE_PATH = (
-        MEASUREMENT_DATA_DIR / "collimated_silicon_metal_sheet_fix_focus/data/single_pixel"
+        RAW_DATA_DIR / "collimated_silicon_metal_sheet_fix_focus/data/single_pixel"
 )
 
 IMAGE_INPUTS = {
     "august2_frost": (
         "Frost",
-        MEASUREMENT_DATA_DIR / "porosity_august2_2026_focused_frost_5.0mm_1.7g/data_image",
+        RAW_DATA_DIR / "porosity_august2_2026_focused_frost_5.0mm_1.7g/data_image",
     ),
     "august2_hr_frost": (
         "Frost HR",
-        MEASUREMENT_DATA_DIR / "porosity_august2_2026_hr_focused_frost_10.0mm_7.2g/data_image",
+        RAW_DATA_DIR / "porosity_august2_2026_hr_focused_frost_10.0mm_7.2g/data_image",
     ),
     "august3_hr_frost": (
         "Frost HR",
-        MEASUREMENT_DATA_DIR / "porosity_august3_hr_2026_focused_frost_10.0mm_7.75g/data_image",
+        RAW_DATA_DIR / "porosity_august3_hr_2026_focused_frost_10.0mm_7.75g/data_image",
     ),
     "august2_uhr_frost": (
         "Frost UHR",
-        MEASUREMENT_DATA_DIR / "porosity_august2_uhr_2026_focused_frost_10.0mm_7.2g/data_image",
+        RAW_DATA_DIR / "porosity_august2_uhr_2026_focused_frost_10.0mm_7.2g/data_image",
     ),
     "august2_lr_frost": (
         "Frost LR",
-        MEASUREMENT_DATA_DIR / "porosity_august2_lr_2026_focused_frost_10.0mm_7.2g/data_image",
+        RAW_DATA_DIR / "porosity_august2_lr_2026_focused_frost_10.0mm_7.2g/data_image",
     ),
 }
 SELECTED_IMAGE = "august3_hr_frost"

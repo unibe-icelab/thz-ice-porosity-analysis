@@ -1,4 +1,6 @@
 *.env
 *.venv
-measurements/data/*
-measurements/output/*
+data/*
+!data/.gitkeep
+results/*
+!results/.gitkeep
