@@ -1,8 +1,10 @@
-"""
-This file contains the scientific colormaps (see http://www.fabiocrameri.ch/visualisation.php, and https://zenodo.org/record/1243863#.Ww6bgEiFNPY)
-converted to Plotly colorscales """
+"""Fabio Crameri scientific colour maps represented as Plotly colour scales.
 
-"""Sequential scientific colorscales"""
+Each exported value is a list of ``[position, "rgb(r, g, b)"]`` pairs with
+positions normalized to ``[0, 1]``. Source: https://www.fabiocrameri.ch/colourmaps/
+"""
+
+# Sequential scientific colour scales.
 
 acton = [[0.0, 'rgb(46, 33,77)'],
          [0.1, 'rgb(72, 56, 100)'],
@@ -124,7 +126,7 @@ turku = [[0.0, 'rgb(0, 0, 0)'],
          [0.9, 'rgb(255, 203, 203)'],
          [1.0, 'rgb(255, 230, 230)']]
 
-"""Diverging scientific colorscales"""
+# Diverging scientific colour scales.
 
 vik = [[0.0, 'rgb(158, 176, 255)'],
        [0.05, 'rgb(130, 173, 242)'],
@@ -280,8 +282,7 @@ vik = [[0.0, 'rgb(1, 18, 97)'],
        [0.95, 'rgb(111, 41, 1)'],
        [1.0, 'rgb(97, 18, 0)']]
 
-""" Special colorscale, oleron, that is a concatenation of two
-sequential colorscales """
+# Oleron concatenates two sequential colour scales.
 
 oleron = [[0.0, 'rgb(26, 38, 89)'],
           [0.05, 'rgb(44, 56, 107)'],

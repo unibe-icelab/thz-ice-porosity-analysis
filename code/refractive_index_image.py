@@ -1,4 +1,10 @@
-# python
+"""Create spatial refractive-index and Bruggeman-porosity maps from THz data.
+
+The selected image cube is inverted pixel by pixel with a uniform-slab model.
+Real refractive index is averaged over 0.9--1.1 THz and converted to porosity
+using the Tao et al. solid-ice refractive index at exactly 1 THz.
+"""
+
 import ast
 from pathlib import Path
 from typing import Dict, Optional
@@ -12,13 +18,18 @@ from shapely.geometry import Point, Polygon
 from thzpy.timedomain import common_window
 from thzpy.transferfunctions import uniform_slab
 from scicolorscales import vik
-from analyze_measurement_campaigns import DEFAULT_DATA_DIR, DEFAULT_OUTPUT_DIR
+from analyze_measurement_campaigns import (
+    DEFAULT_DATA_DIR,
+    DEFAULT_OUTPUT_DIR,
+    SOLID_ICE_DENSITY_G_CM3,
+    tao_ice_refractive_index_at_1thz,
+)
+from plot_outputs import save_figure_outputs
 
 import numpy as np
 
-EPS_AIR = 1.0
-SOLID_ICE_DENSITY_G_CM3 = 0.918
-DEFAULT_EMT_MODEL = "bruggemann"
+EPS_VACUUM = 1.0
+DEFAULT_EMT_MODEL = "bruggeman"
 RAW_DATA_DIR = DEFAULT_DATA_DIR
 OUTPUT_DIR = DEFAULT_OUTPUT_DIR
 
@@ -26,11 +37,6 @@ IMAGE_REFERENCE_PATH = (
         RAW_DATA_DIR
         / "porosity_august3_2026_focused_silicon_reference/data/trans/single_pixel/1787033231.1361303_sp_data.thz"
 )
-SOLID_ICE_PATH = RAW_DATA_DIR / "collimated_solid_ice_3a/data/single_pixel"
-SOLID_ICE_REFERENCE_PATH = (
-        RAW_DATA_DIR / "collimated_silicon_metal_sheet_fix_focus/data/single_pixel"
-)
-
 IMAGE_INPUTS = {
     "august2_frost": (
         "Frost",
@@ -83,6 +89,7 @@ plt.rcParams.update(params)
 
 
 def get_thz_file_from_path(path: Path) -> Path:
+    """Return the first sorted ``*_data.thz`` image file in a directory."""
     matches = sorted(path.glob("*_data.thz"))
     if not matches:
         raise FileNotFoundError(f"No *_data.thz file found in {path}")
@@ -90,6 +97,7 @@ def get_thz_file_from_path(path: Path) -> Path:
 
 
 def extract_rois(path: Path, measurement_key: Optional[str] = None) -> Dict[str, Dict[str, object]]:
+    """Read ROI polygons from image metadata and enumerate enclosed pixels."""
     rois: Dict[str, Dict[str, object]] = {}
     with DotthzFile(path, "r") as image_file:
         if measurement_key is None:
@@ -122,10 +130,12 @@ def extract_rois(path: Path, measurement_key: Optional[str] = None) -> Dict[str,
 
 
 def roi_polygon_mm(points_px, height: int, dx: float, dy: float):
+    """Convert ROI vertices from pixel indices to millimetre coordinates."""
     return [(x * dx, (height - 1 - y) * dy) for x, y in points_px]
 
 
 def roi_stats(image: np.ndarray, pixels) -> tuple[float, float]:
+    """Return finite-pixel mean and sample standard deviation for an ROI."""
     values = np.array([image[y, x] for x, y in pixels], dtype=float)
     values = values[np.isfinite(values)]
     if values.size == 0:
@@ -136,11 +146,19 @@ def roi_stats(image: np.ndarray, pixels) -> tuple[float, float]:
 def get_refraction_index(time, traces, t_ref, p_ref, window_half_width=15, win_func="hanning",
                          min_frequency=0.2, max_frequency=3, d_mm=1.0, mask_radius=None, mask_center_x=None,
                          mask_center_y=None):
-    """
-    Compute refractive index map for all pixels in `traces`.
-    This function first determines the frequency axis from the first valid pixel,
-    then preallocates arrays with a homogeneous shape (nx, ny, n_freq) and fills
-    them. Failed pixels are filled with NaN to avoid inhomogeneous nested lists.
+    """Compute a uniform-slab refractive-index spectrum for every image pixel.
+
+    ``time``, ``t_ref``, and the final axis of ``traces`` are time-domain data;
+    ``d_mm`` is sample thickness in millimetres and frequency bounds are in
+    terahertz. The optional circular mask is evaluated in pixel coordinates
+    after converting the supplied radius with the workflow's 0.5 mm spacing.
+
+    The frequency axis is obtained from the first successfully inverted pixel.
+    Output arrays have shape ``(nx, ny, n_frequency)``. Failed or masked pixels
+    remain NaN.
+
+    Returns:
+        ``(frequency_thz, real_refractive_index, complex_refractive_index)``.
     """
     nx, ny = traces.shape[0], traces.shape[1]
     data_ref = np.array([t_ref, p_ref])
@@ -217,42 +235,33 @@ def get_refraction_index(time, traces, t_ref, p_ref, window_half_width=15, win_f
     return freq, refractive_index, complex_refractive_index
 
 
-def maxwell_garnett_vi(epsilon_eff, epsilon_host, epsilon_ice):
-    numerator = (epsilon_eff - epsilon_host) * (epsilon_ice + 2 * epsilon_host)
-    denominator = (epsilon_ice - epsilon_host) * (epsilon_eff + 2 * epsilon_host)
-    return numerator / denominator
-
-
-def looyenga_vi(epsilon_eff, epsilon_host, epsilon_ice):
-    return (np.power(epsilon_eff, 1 / 3) - np.power(epsilon_host, 1 / 3)) / (
-            np.power(epsilon_ice, 1 / 3) - np.power(epsilon_host, 1 / 3)
-    )
-
-
-def bruggemann_vi(epsilon_eff, epsilon_ice):
-    lhs = (EPS_AIR - epsilon_eff) / (EPS_AIR + 2 * epsilon_eff)
+def bruggeman_vi(epsilon_eff, epsilon_ice):
+    """Invert symmetric air/ice Bruggeman EMT for ice volume fraction."""
+    lhs = (EPS_VACUUM - epsilon_eff) / (EPS_VACUUM + 2 * epsilon_eff)
     rhs = (epsilon_ice - epsilon_eff) / (epsilon_ice + 2 * epsilon_eff)
     return lhs / (lhs - rhs)
 
 
 def porosity_from_emt_refractive_index(n_eff_map, n_ice_scalar, model=DEFAULT_EMT_MODEL):
+    """Convert a real effective-index map to clipped EMT porosity.
+
+    Args:
+        n_eff_map: Scalar or array of effective real refractive indices.
+        n_ice_scalar: Real solid-ice refractive index at the analysis frequency.
+        model: EMT model key; only ``"bruggeman"`` is supported.
+
+    Returns:
+        Porosity with the same shape as ``n_eff_map`` and values in ``[0, 1]``.
+    """
     epsilon_eff = np.asarray(n_eff_map, dtype=float) ** 2
     epsilon_ice = float(n_ice_scalar) ** 2
 
-    if model == "bruggemann":
-        ice_fraction = bruggemann_vi(epsilon_eff, epsilon_ice)
-    elif model == "maxwellgarnett":
-        ice_fraction = maxwell_garnett_vi(epsilon_eff, EPS_AIR, epsilon_ice)
-    elif model == "lll":
-        ice_fraction = looyenga_vi(epsilon_eff, EPS_AIR, epsilon_ice)
-    else:
+    if model != "bruggeman":
         raise ValueError(f"Unsupported EMT model: {model}")
+    ice_fraction = bruggeman_vi(epsilon_eff, epsilon_ice)
 
     ice_fraction = np.clip(np.real(ice_fraction), 0.0, 1.0)
     return 1.0 - ice_fraction
-
-
-# plt.style.use('dark_background')
 
 
 if __name__ == "__main__":
@@ -261,17 +270,6 @@ if __name__ == "__main__":
         sample = ref_file["Single Pixel 0"].datasets["Sample"][:]
         t_ref = sample[:, 0]
         p_ref = sample[:, 1]
-
-    solid_ice_thz_path = get_thz_file_from_path(SOLID_ICE_PATH)
-    solid_ice_ref_thz_path = get_thz_file_from_path(SOLID_ICE_REFERENCE_PATH)
-    with DotthzFile(solid_ice_thz_path) as solid_file:
-        solid_sample = solid_file["Single Pixel 0"].datasets["Sample"][:]
-        t_solid = solid_sample[:, 0]
-        p_solid = solid_sample[:, 1]
-    with DotthzFile(solid_ice_ref_thz_path) as solid_ref_file:
-        solid_ref_sample = solid_ref_file["Single Pixel 0"].datasets["Sample"][:]
-        t_solid_ref = solid_ref_sample[:, 0]
-        p_solid_ref = solid_ref_sample[:, 1]
 
     material, path = IMAGE_INPUTS[SELECTED_IMAGE]
     path = get_thz_file_from_path(path)
@@ -298,29 +296,24 @@ if __name__ == "__main__":
     # traces = traces[::, ::, times < 1960]
     # times = times[times < 1960]
 
-    plt.plot(times, traces[width // 2, height // 2, :])
-    plt.plot(times, traces[width // 4, height // 4, :])
+    trace_fig, trace_ax = plt.subplots(figsize=(8, 5))
+    trace_ax.plot(times, traces[width // 2, height // 2, :], label="Image center")
+    trace_ax.plot(times, traces[width // 4, height // 4, :], label="Image quarter")
     # plt.plot(times, traces[48, 68, :])
     # plt.plot(times, traces[42, 60, :])
-    plt.plot(t_ref, p_ref, color="black")
-    plt.title("Example Trace Before Surface Extraction")
-    plt.xlabel("Time (ps)")
-    plt.ylabel("Signal (a.u.)")
+    trace_ax.plot(t_ref, p_ref, color="black", label="Reference")
+    trace_ax.set_title("Example Trace Before Surface Extraction")
+    trace_ax.set_xlabel("Time (ps)")
+    trace_ax.set_ylabel("Signal (a.u.)")
+    trace_ax.legend()
+    trace_fig.tight_layout()
+    save_figure_outputs(
+        trace_fig,
+        OUTPUT_DIR / f"frost_transmission_{material}_example_traces",
+    )
     plt.show()
 
-    freqs_solid, _, solid_complex_refractive_index = get_refraction_index(
-        t_solid,
-        p_solid[np.newaxis, np.newaxis, :],
-        t_solid_ref,
-        p_solid_ref,
-        window_half_width=25,
-        win_func="hanning",
-        min_frequency=0.5,
-        max_frequency=3,
-        d_mm=10.0,
-    )
-    solid_band_mask = (freqs_solid > 0.9) & (freqs_solid < 1.1)
-    solid_refractive_index_at_1thz = float(np.nanmean(np.real(solid_complex_refractive_index[0, 0, solid_band_mask])))
+    solid_refractive_index_at_1thz = tao_ice_refractive_index_at_1thz()
 
     freqs, refractive_index, complex_refractive_index = get_refraction_index(
         times,
@@ -337,7 +330,21 @@ if __name__ == "__main__":
         mask_center_y=3,
     )
 
-    plt.plot(freqs, refractive_index[width // 2, height // 2, :])
+    spectrum_fig, spectrum_ax = plt.subplots(figsize=(8, 5))
+    spectrum_ax.plot(
+        freqs,
+        refractive_index[width // 2, height // 2, :],
+        label="Image center",
+    )
+    spectrum_ax.set_title("Example Refractive-Index Spectrum")
+    spectrum_ax.set_xlabel("Frequency (THz)")
+    spectrum_ax.set_ylabel("Refractive index (-)")
+    spectrum_ax.legend()
+    spectrum_fig.tight_layout()
+    save_figure_outputs(
+        spectrum_fig,
+        OUTPUT_DIR / f"frost_transmission_{material}_example_refractive_index",
+    )
     plt.show()
 
     band_mask = (freqs > 0.9) & (freqs < 1.1)
@@ -391,6 +398,7 @@ if __name__ == "__main__":
         aspect="equal",
         extent=(0, x_max - x_min, 0, y_max - y_min),
     )
+    n_im.set_label("Refractive index map")
     axes[0].text(40, 45, "A", color="white")
     axes[0].text(18, 41, "B", color="white")
     axes[0].text(23, 17, "C", color="white")
@@ -420,6 +428,7 @@ if __name__ == "__main__":
         aspect="equal",
         extent=(0, x_max - x_min, 0, y_max - y_min),
     )
+    porosity_im.set_label("Porosity map")
 
     axes[1].text(40, 45, "A", color="white")
     axes[1].text(18, 41, "B", color="white")
@@ -442,6 +451,8 @@ if __name__ == "__main__":
     axes[1].set_xticks(range(0, int(x_max - x_min + 1), 10))
     axes[1].set_yticks(range(0, int(y_max - y_min + 1), 10))
 
-    fig.savefig(OUTPUT_DIR / f"frost_transmission_{material}_inv_and_porosity.png", dpi=300)
-    fig.savefig(OUTPUT_DIR / f"frost_transmission_{material}_inv_and_porosity.pdf")
+    save_figure_outputs(
+        fig,
+        OUTPUT_DIR / f"frost_transmission_{material}_inv_and_porosity",
+    )
     plt.show()

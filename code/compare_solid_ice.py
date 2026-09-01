@@ -1,3 +1,5 @@
+"""Compare drift-corrected solid-ice THz spectra with Tao et al. data."""
+
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -14,20 +16,25 @@ from analyze_measurement_campaigns import (
     load_campaign_config,
     read_trace,
 )
+from analyze_porosity_emt import compensate_sample_trace_from_embedded_refs
+from plot_outputs import save_figure_outputs
 
 LITERATURE_PATH = DEFAULT_DATA_ROOT / "ice_refractive_index.csv"
 
 
 def load_literature_curve() -> pd.DataFrame:
+    """Load the tab-separated Tao et al. frequency/index reference table."""
     df = pd.read_csv(LITERATURE_PATH, delimiter="\t")
     return df.rename(columns={"f": "frequency_thz", "n": "refractive_index"})
 
 
 def load_campaign_configs() -> list[CampaignConfig]:
+    """Load every campaign JSON file from the default configuration directory."""
     return [load_campaign_config(path) for path in sorted(DEFAULT_CONFIG_DIR.glob("*.json"))]
 
 
 def collect_solid_measurements(configs: list[CampaignConfig]) -> list[tuple[CampaignConfig, MeasurementConfig]]:
+    """Collect unique, non-ignored measurements explicitly labelled ``SOLID``."""
     solid_measurements: list[tuple[CampaignConfig, MeasurementConfig]] = []
     seen_paths: set[Path] = set()
 
@@ -46,10 +53,24 @@ def collect_solid_measurements(configs: list[CampaignConfig]) -> list[tuple[Camp
 def compute_solid_curves(
         solid_measurements: list[tuple[CampaignConfig, MeasurementConfig]],
 ) -> list[dict[str, np.ndarray | str]]:
+    """Extract drift-corrected refractive-index spectra for solid samples.
+
+    Embedded sample/reference traces are used for timing compensation before
+    the slab inversion. Each result dictionary contains a label, frequency axis
+    in terahertz, and the real refractive-index spectrum.
+    """
     curves: list[dict[str, np.ndarray | str]] = []
+    embedded_ref_cache: dict[Path, tuple[np.ndarray, np.ndarray]] = {}
 
     for config, measurement in solid_measurements:
         time, sample_trace, _ = read_trace(measurement.path)
+        sample_trace = compensate_sample_trace_from_embedded_refs(
+            measurement_path=measurement.path,
+            reference_path=measurement.reference_path,
+            sample_time=time,
+            sample_trace=sample_trace,
+            embedded_ref_cache=embedded_ref_cache,
+        )
         t_ref, p_ref, _ = read_trace(measurement.reference_path)
         frequency, refractive_index, _ = get_refraction_index(
             time=time,
@@ -74,6 +95,7 @@ def compute_solid_curves(
 
 
 def stack_curves(curves: list[dict[str, np.ndarray | str]]) -> tuple[np.ndarray, np.ndarray]:
+    """Stack spectra that share the first curve's frequency axis."""
     frequency = np.asarray(curves[0]["frequency_thz"])
     stacked = np.vstack([np.asarray(curve["refractive_index"]) for curve in curves])
     return frequency, stacked
@@ -107,8 +129,10 @@ if __name__ == "__main__":
 
     fig, ax = plt.subplots(figsize=(10, 6))
     ax.plot(
-        literature_df["frequency_thz"][(literature_df["frequency_thz"] > lower_threshold) & (literature_df["frequency_thz"] < upper_threshold)],
-        literature_df["refractive_index"][(literature_df["frequency_thz"] > lower_threshold) & (literature_df["frequency_thz"] < upper_threshold)],
+        literature_df["frequency_thz"][
+            (literature_df["frequency_thz"] > lower_threshold) & (literature_df["frequency_thz"] < upper_threshold)],
+        literature_df["refractive_index"][
+            (literature_df["frequency_thz"] > lower_threshold) & (literature_df["frequency_thz"] < upper_threshold)],
         label="Tao et al. (2024)",
         color="tab:blue",
         linewidth=2.5,
@@ -116,8 +140,10 @@ if __name__ == "__main__":
 
     for i, curve in enumerate(solid_curves):
         ax.plot(
-            curve["frequency_thz"][(curve["frequency_thz"] > lower_threshold) & (curve["frequency_thz"] < upper_threshold)],
-            curve["refractive_index"][(curve["frequency_thz"] > lower_threshold) & (curve["frequency_thz"] < upper_threshold)],
+            curve["frequency_thz"][
+                (curve["frequency_thz"] > lower_threshold) & (curve["frequency_thz"] < upper_threshold)],
+            curve["refractive_index"][
+                (curve["frequency_thz"] > lower_threshold) & (curve["frequency_thz"] < upper_threshold)],
             alpha=1.0,
             linewidth=1.2,
             linestyle="--",
@@ -139,6 +165,5 @@ if __name__ == "__main__":
     ax.grid(True, alpha=0.3)
     ax.legend(loc="center left", bbox_to_anchor=(1.02, 0.5))
     fig.tight_layout(rect=(0, 0, 0.95, 1))
-    fig.savefig(DEFAULT_OUTPUT_DIR / "solid_ice.png")
-    fig.savefig(DEFAULT_OUTPUT_DIR / "solid_ice.pdf")
+    save_figure_outputs(fig, DEFAULT_OUTPUT_DIR / "solid_ice")
     plt.show()

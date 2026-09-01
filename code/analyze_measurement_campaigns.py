@@ -1,9 +1,18 @@
+"""Shared THz-TDS campaign loading, optical extraction, and EMT utilities.
+
+The module reads campaign JSON files and ``.thz`` acquisitions, averages
+repeat traces, derives slab optical constants, propagates geometry
+uncertainties, and constructs effective-medium curves at 1 THz. Paths are
+resolved relative to the repository so the scripts can run from any directory.
+"""
+
 from __future__ import annotations
 
 import argparse
 import csv
 import json
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 from typing import Dict, Iterable, List, Sequence, Tuple
 
@@ -13,21 +22,29 @@ from pydotthz import DotthzFile
 from thzpy.timedomain import common_window
 from thzpy.transferfunctions import uniform_slab
 
+from plot_outputs import save_figure_outputs
+
 CODE_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = CODE_DIR.parent
 DEFAULT_DATA_ROOT = PROJECT_ROOT / "data"
 DEFAULT_DATA_DIR = DEFAULT_DATA_ROOT / "raw"
 DEFAULT_CONFIG_DIR = DEFAULT_DATA_ROOT / "configs"
 DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "results"
+TAO_ICE_REFRACTIVE_INDEX_PATH = DEFAULT_DATA_ROOT / "ice_refractive_index.csv"
 TRACE_TIME_MIN_PS = 1860
 TRACE_TIME_MAX_PS = 1960
-EPS_AIR = 1.0
-SOLID_ICE_DENSITY_THRESHOLD_G_CM3 = 0.8
-EMT_MODELS = ("bruggemann", "maxwellgarnett", "lll")
+EPS_VACUUM = 1.0
+SOLID_ICE_DENSITY_G_CM3 = 0.917
+EMT_MODELS = ("bruggeman",)
 
 
 @dataclass
 class AnalysisSettings:
+    """Analysis parameters shared by all measurements in one campaign.
+
+    Lengths retain the units encoded in each attribute name. Uncertainty fields
+    are interpreted as standard uncertainties.
+    """
     radius_m: float
     radius_err_m: float
     thickness_err_mm: float
@@ -46,6 +63,7 @@ class AnalysisSettings:
 
 @dataclass
 class MeasurementConfig:
+    """Configuration and physical metadata for one sample acquisition."""
     measurement_id: str
     label: str
     path: Path
@@ -59,6 +77,7 @@ class MeasurementConfig:
 
 @dataclass
 class CampaignConfig:
+    """Fully resolved campaign configuration with its measurement records."""
     campaign_id: str
     description: str
     plot_color: str
@@ -69,6 +88,7 @@ class CampaignConfig:
 
 @dataclass
 class MeasurementResult:
+    """Derived density and 1 THz optical result for one measurement."""
     campaign_id: str
     measurement_id: str
     label: str
@@ -84,6 +104,7 @@ class MeasurementResult:
 
 
 def load_json(path: Path) -> Dict:
+    """Read and decode a UTF-8 JSON file."""
     with path.open("r", encoding="utf-8") as handle:
         return json.load(handle)
 
@@ -95,6 +116,12 @@ def resolve_project_path(value: str | Path) -> Path:
 
 
 def load_campaign_config(path: Path) -> CampaignConfig:
+    """Load a campaign JSON file and resolve all data paths.
+
+    Both current ``*_path`` and legacy ``*_file`` solid-reference keys are
+    accepted. Numeric JSON values are normalized to their declared Python
+    types before the dataclasses are constructed.
+    """
     payload = load_json(path)
     analysis_payload = payload["analysis"]
     reference_payload = payload["reference"]
@@ -153,6 +180,12 @@ def load_campaign_config(path: Path) -> CampaignConfig:
 
 
 def get_thz_files(path: Path) -> List[Path]:
+    """Return sorted THz acquisition files from a file or directory path.
+
+    Raises:
+        ValueError: If a supplied file does not have the ``.thz`` suffix.
+        FileNotFoundError: If the path or matching acquisition files are absent.
+    """
     if path.is_file():
         if path.suffix.lower() != ".thz":
             raise ValueError(f"Expected a .thz file, got {path}")
@@ -168,6 +201,12 @@ def get_thz_files(path: Path) -> List[Path]:
 
 
 def read_trace(path: Path) -> Tuple[np.ndarray, np.ndarray, int]:
+    """Read, crop, align, and average sample traces from an acquisition path.
+
+    Returns:
+        A tuple ``(time_ps, mean_amplitude, file_count)``. Traces whose time
+        axes differ are linearly interpolated onto the first trace's axis.
+    """
     time_axis: np.ndarray | None = None
     traces: List[np.ndarray] = []
     thz_files = get_thz_files(path)
@@ -200,6 +239,7 @@ def read_trace_cached(
         path: Path,
         cache: Dict[Path, Tuple[np.ndarray, np.ndarray, int]],
 ) -> Tuple[np.ndarray, np.ndarray, int]:
+    """Return an averaged trace, populating the caller-owned cache on demand."""
     if path not in cache:
         cache[path] = read_trace(path)
     return cache[path]
@@ -216,6 +256,15 @@ def get_refraction_index(
         max_frequency: float,
         d_mm: float,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Extract the refractive-index spectrum of a uniform sample slab.
+
+    The sample and reference receive a common time-domain window before
+    ``thzpy.transferfunctions.uniform_slab`` is applied. Thickness ``d_mm`` is
+    in millimetres and frequency limits are in terahertz.
+
+    Returns:
+        ``(frequency_thz, real_refractive_index, complex_refractive_index)``.
+    """
     data_ref = np.array([t_ref, p_ref])
     p_pair = np.array([time, traces])
 
@@ -241,76 +290,112 @@ def get_refraction_index(
     return frequency, refractive_index, complex_refractive_index
 
 
-def compute_density(mass_kg: float, thickness_mm: float, settings: AnalysisSettings) -> Tuple[float, float]:
+def compute_density_uncertainty_components(
+        mass_kg: float,
+        mass_err_kg: float,
+        thickness_mm: float,
+        thickness_err_mm: float,
+        settings: AnalysisSettings,
+) -> Tuple[float, float, float]:
+    """Return density and its independent and shared-radius standard uncertainties."""
     thickness_m = thickness_mm / 1000.0
-    thickness_err_m = settings.thickness_err_mm / 1000.0
+    thickness_err_m = thickness_err_mm / 1000.0
     radius_m = settings.radius_m
     radius_err_m = settings.radius_err_m
+    if mass_kg <= 0 or thickness_m <= 0 or radius_m <= 0:
+        raise ValueError("Mass, thickness, and radius must be positive.")
+    if mass_err_kg < 0 or thickness_err_m < 0 or radius_err_m < 0:
+        raise ValueError("Standard uncertainties must be non-negative.")
+
     volume_m3 = np.pi * radius_m ** 2 * thickness_m
     density_kg_m3 = mass_kg / volume_m3
-
-    density_err_kg_m3 = np.sqrt(
-        (settings.mass_err_kg / volume_m3) ** 2
-        + (mass_kg / (np.pi * radius_m ** 2 * thickness_m ** 2) * thickness_err_m) ** 2
-        + (2 * mass_kg / (np.pi * radius_m ** 3 * thickness_m) * radius_err_m) ** 2
+    mass_and_thickness_err_kg_m3 = np.sqrt(
+        (mass_err_kg / volume_m3) ** 2
+        + (density_kg_m3 * thickness_err_m / thickness_m) ** 2
     )
-    return density_kg_m3 / 1000.0, density_err_kg_m3 / 1000.0
+    radius_err_kg_m3 = 2 * density_kg_m3 * radius_err_m / radius_m
+    return (
+        density_kg_m3 / 1000.0,
+        mass_and_thickness_err_kg_m3 / 1000.0,
+        radius_err_kg_m3 / 1000.0,
+    )
+
+
+def compute_density(
+        mass_kg: float,
+        thickness_mm: float,
+        settings: AnalysisSettings,
+        *,
+        mass_err_kg: float | None = None,
+        thickness_err_mm: float | None = None,
+) -> Tuple[float, float]:
+    """Calculate density and standard uncertainty for independent input quantities."""
+    density, independent_err, radius_err = compute_density_uncertainty_components(
+        mass_kg=mass_kg,
+        mass_err_kg=settings.mass_err_kg if mass_err_kg is None else mass_err_kg,
+        thickness_mm=thickness_mm,
+        thickness_err_mm=settings.thickness_err_mm if thickness_err_mm is None else thickness_err_mm,
+        settings=settings,
+    )
+    return density, float(np.hypot(independent_err, radius_err))
 
 
 def compute_refractive_index_error(refractive_index_at_1thz: float, thickness_mm: float,
-                                   thickness_err_mm: float) -> float:
-    if thickness_mm == 0:
-        return float("nan")
-    return refractive_index_at_1thz / thickness_mm * thickness_err_mm
+                                   thickness_err_mm: float, n_medium: float = 1.0) -> float:
+    """Thickness contribution to n uncertainty for n = n_medium + C / thickness."""
+    if thickness_mm <= 0:
+        raise ValueError("Thickness must be positive.")
+    if thickness_err_mm < 0:
+        raise ValueError("Thickness uncertainty must be non-negative.")
+    return abs(refractive_index_at_1thz - n_medium) / thickness_mm * thickness_err_mm
 
 
-def maxwell_garnett_eps(volume_fraction_ice: np.ndarray, eps_host: complex, eps_ice: complex) -> np.ndarray:
-    delta_eps = eps_ice - eps_host
-    numerator = eps_ice + 2 * eps_host + 2 * volume_fraction_ice * delta_eps
-    denominator = eps_ice + 2 * eps_host - volume_fraction_ice * delta_eps
-    return eps_host * numerator / denominator
+@lru_cache(maxsize=1)
+def tao_ice_refractive_index_at_1thz() -> float:
+    """Linearly interpolate the Tao et al. solid-ice table at exactly 1 THz."""
+    with TAO_ICE_REFRACTIVE_INDEX_PATH.open("r", encoding="utf-8", newline="") as handle:
+        rows = list(csv.DictReader(handle, delimiter="\t"))
+    frequencies = np.asarray([float(row["f"]) for row in rows], dtype=float)
+    indices = np.asarray([float(row["n"]) for row in rows], dtype=float)
+    if frequencies.size < 2 or np.any(np.diff(frequencies) <= 0):
+        raise ValueError(f"Invalid Tao et al. refractive-index table: {TAO_ICE_REFRACTIVE_INDEX_PATH}")
+    if not frequencies[0] <= 1.0 <= frequencies[-1]:
+        raise ValueError("The Tao et al. table does not bracket 1 THz.")
+    return float(np.interp(1.0, frequencies, indices))
 
 
-def lll_eps(volume_fraction_ice: np.ndarray, eps_host: complex, eps_ice: complex) -> np.ndarray:
-    eps_host_root = np.power(eps_host, 1 / 3)
-    eps_ice_root = np.power(eps_ice, 1 / 3)
-    return np.power((1 - volume_fraction_ice) * eps_host_root + volume_fraction_ice * eps_ice_root, 3)
-
-
-def bruggemann_eps(volume_fraction_ice: np.ndarray, eps_host: complex, eps_ice: complex) -> np.ndarray:
+def bruggeman_eps(volume_fraction_ice: np.ndarray, eps_host: complex, eps_ice: complex) -> np.ndarray:
+    """Evaluate the physical branch of the symmetric Bruggeman solution."""
     b_term = 3 * volume_fraction_ice * (eps_ice - eps_host) + 2 * eps_host - eps_ice
     return (b_term + np.sqrt(b_term ** 2 + 8 * eps_host * eps_ice)) / 4
 
 
 def theoretical_emt_curve(
-        solid_ice_complex_index: complex,
         solid_ice_density_g_cm3: float,
         model: str,
         point_count: int = 200,
 ) -> Tuple[np.ndarray, np.ndarray]:
+    """Construct a density-versus-index EMT curve at exactly 1 THz.
+
+    The ice volume fraction is identified with bulk density divided by the
+    supplied solid-ice density. Solid-ice permittivity uses the Tao et al.
+    refractive index interpolated at 1 THz.
+    """
     density_axis = np.linspace(0.0, solid_ice_density_g_cm3, point_count)
     volume_fraction_ice = np.clip(density_axis / solid_ice_density_g_cm3, 0.0, 1.0)
-    eps_ice = solid_ice_complex_index ** 2
+    eps_ice = tao_ice_refractive_index_at_1thz() ** 2
 
-    if model == "bruggemann":
-        eps_eff = bruggemann_eps(volume_fraction_ice, EPS_AIR, eps_ice)
-    elif model == "maxwellgarnett":
-        eps_eff = maxwell_garnett_eps(volume_fraction_ice, EPS_AIR, eps_ice)
-    elif model == "lll":
-        eps_eff = lll_eps(volume_fraction_ice, EPS_AIR, eps_ice)
-    else:
+    if model != "bruggeman":
         raise ValueError(f"Unsupported EMT model: {model}")
+    eps_eff = bruggeman_eps(volume_fraction_ice, EPS_VACUUM, eps_ice)
 
     return density_axis, np.real(np.sqrt(eps_eff))
 
 
 def emt_model_label(model: str) -> str:
-    if model == "bruggemann":
-        return "Bruggemann"
-    if model == "maxwellgarnett":
-        return "Maxwell-Garnett"
-    if model == "lll":
-        return "LLL"
+    """Return the publication-facing label for an internal EMT model key."""
+    if model == "bruggeman":
+        return "Bruggeman"
     raise ValueError(f"Unsupported EMT model: {model}")
 
 
@@ -320,6 +405,7 @@ def analyze_campaign(
         scatter_ax: plt.Axes,
         trace_cache: Dict[Path, Tuple[np.ndarray, np.ndarray, int]],
 ) -> List[MeasurementResult]:
+    """Analyze all non-ignored measurements and add them to campaign plots."""
     settings = campaign.analysis
     scatter_color = campaign.plot_color
     fit_band_min, fit_band_max = settings.fit_band_thz
@@ -347,6 +433,8 @@ def analyze_campaign(
             measurement.mass_kg,
             measurement.thickness_mm,
             settings,
+            mass_err_kg=measurement.mass_err_kg,
+            thickness_err_mm=measurement.thickness_err_mm,
         )
         fit_mask = (freqs > fit_band_min) & (freqs < fit_band_max)
         refractive_index_at_1thz = float(np.nanmean(refractive_index[fit_mask]))
@@ -394,28 +482,24 @@ def analyze_campaign(
     return results
 
 
-def plot_shared_emt_curves(scatter_ax: plt.Axes, results: Sequence[MeasurementResult]) -> Tuple[complex, float, int]:
+def plot_shared_emt_curves(scatter_ax: plt.Axes, results: Sequence[MeasurementResult]) -> Tuple[float, float, int]:
+    """Add the Bruggeman curve using the fixed solid-ice density.
+
+    Returns:
+        ``(tao_index_at_1thz, solid_density_g_cm3, measured_solid_count)``.
+    """
     solid_results = [
         result for result in results
-        if result.density_g_cm3 > SOLID_ICE_DENSITY_THRESHOLD_G_CM3
+        if result.label.upper() == "SOLID"
     ]
-    if not solid_results:
-        raise ValueError(
-            f"No measurements above {SOLID_ICE_DENSITY_THRESHOLD_G_CM3:.1f} g/cm^3 available for shared EMT calibration."
-        )
-
-    mean_complex_index = complex(np.mean([result.complex_refractive_index_at_1thz for result in solid_results]))
-    mean_density_g_cm3 = float(np.mean([result.density_g_cm3 for result in solid_results]))
+    tao_index = tao_ice_refractive_index_at_1thz()
 
     model_styles = {
-        "bruggemann": {"color": "black", "linestyle": "--"},
-        "maxwellgarnett": {"color": "dimgray", "linestyle": "-."},
-        "lll": {"color": "saddlebrown", "linestyle": ":"},
+        "bruggeman": {"color": "black", "linestyle": "--"},
     }
     for model in EMT_MODELS:
         emt_density_axis, emt_refractive_index = theoretical_emt_curve(
-            solid_ice_complex_index=mean_complex_index,
-            solid_ice_density_g_cm3=mean_density_g_cm3,
+            solid_ice_density_g_cm3=SOLID_ICE_DENSITY_G_CM3,
             model=model,
         )
         style = model_styles[model]
@@ -427,10 +511,11 @@ def plot_shared_emt_curves(scatter_ax: plt.Axes, results: Sequence[MeasurementRe
             **style,
         )
 
-    return mean_complex_index, mean_density_g_cm3, len(solid_results)
+    return tao_index, SOLID_ICE_DENSITY_G_CM3, len(solid_results)
 
 
 def write_summary_csv(results: Iterable[MeasurementResult], output_path: Path) -> None:
+    """Write the campaign-level density and refractive-index summary table."""
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with output_path.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.writer(handle)
@@ -468,12 +553,14 @@ def write_summary_csv(results: Iterable[MeasurementResult], output_path: Path) -
 
 
 def collect_config_paths(config_dir: Path, config_files: Sequence[str]) -> List[Path]:
+    """Resolve explicit config arguments or discover all JSON configs."""
     if config_files:
         return [Path(item).resolve() for item in config_files]
     return sorted(config_dir.glob("*.json"))
 
 
 def make_unique_legend(ax: plt.Axes) -> None:
+    """Create an axes legend with only the first handle for each label."""
     handles, labels = ax.get_legend_handles_labels()
     unique: Dict[str, object] = {}
     for handle, label in zip(handles, labels):
@@ -483,6 +570,7 @@ def make_unique_legend(ax: plt.Axes) -> None:
 
 
 def parse_args() -> argparse.Namespace:
+    """Parse command-line options for campaign analysis."""
     parser = argparse.ArgumentParser(description="Analyze THz measurement campaigns from JSON configs.")
     parser.add_argument(
         "--config-dir",
@@ -511,6 +599,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> None:
+    """Run all selected campaigns and save overview plots and a CSV table."""
     args = parse_args()
     config_paths = collect_config_paths(args.config_dir.resolve(), args.config)
     if not config_paths:
@@ -535,21 +624,28 @@ def main() -> None:
         overview_axes[1].set_ylabel("Refractive index (-)")
         make_unique_legend(overview_axes[0])
         overview_fig.tight_layout()
-        overview_fig.savefig(args.output_dir / f"{campaign.campaign_id}_trace_overview.png", dpi=300)
+        save_figure_outputs(
+            overview_fig,
+            args.output_dir / f"{campaign.campaign_id}_trace_overview",
+        )
         overview_figures.append(overview_fig)
 
-    _, mean_density_g_cm3, solid_result_count = plot_shared_emt_curves(scatter_ax, all_results)
+    _, solid_density_g_cm3, solid_result_count = plot_shared_emt_curves(scatter_ax, all_results)
     scatter_ax.set_xlabel(r"Ice density [g/cm$^3$]")
     scatter_ax.set_ylabel("Refractive index @ 1 THz (-)")
     scatter_ax.set_title(
-        f"Measured points with shared EMT curves ({solid_result_count} solids, avg density {mean_density_g_cm3:.3f} g/cm^3)"
+        f"Measured points with Bruggeman EMT "
+        f"({solid_result_count} measured solids, fixed density {solid_density_g_cm3:.3f} g/cm^3)"
     )
     make_unique_legend(scatter_ax)
 
     write_summary_csv(all_results, args.output_dir / "campaign_analysis_summary.csv")
 
     scatter_fig.tight_layout()
-    scatter_fig.savefig(args.output_dir / "campaign_refractive_index_vs_density.png", dpi=300)
+    save_figure_outputs(
+        scatter_fig,
+        args.output_dir / "campaign_refractive_index_vs_density",
+    )
 
     if args.show:
         plt.show()

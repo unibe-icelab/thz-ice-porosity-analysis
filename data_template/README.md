@@ -5,7 +5,8 @@ This directory is a lightweight template for the THz-TDS raw-data and campaign-c
 template.
 
 Copy the template contents into `data/`, then insert your own acquisitions below `data/raw/` or download the published
-dataset from Figshare.
+dataset from Figshare. A usable `data/` directory must also contain the published `ice_refractive_index.csv` table;
+the lightweight template does not duplicate that literature dataset.
 
 ## Directory structure
 
@@ -25,7 +26,7 @@ Each directory below `raw/` keeps the original acquisition name. The JSON config
 containing one or more `.thz` files. Some acquisitions also contain `.png` and `.pdf` exports produced by the
 measurement software; these are retained alongside the raw `.thz` files.
 
-The two layouts in use are:
+The three layouts in use are:
 
 - `raw/<acquisition>/data/single_pixel/` for the legacy collimated measurements.
 - `raw/<acquisition>/data/trans/single_pixel/` for the July transmission campaigns.
@@ -48,8 +49,8 @@ selection is the August 3 high-resolution frost image. Alternative image resolut
 The image workflow also uses:
 
 - `porosity_august3_2026_focused_silicon_reference/data/trans/single_pixel/` as its silicon reference.
-- `collimated_solid_ice_3a/data/single_pixel/` as its solid-ice calibration sample.
-- `collimated_silicon_metal_sheet_fix_focus/data/single_pixel/` as the solid-ice reference.
+- `ice_refractive_index.csv` for the Tao et al. solid-ice refractive index interpolated at exactly 1 THz. This table is
+  supplied with the published data and must be added when constructing `data/` from the lightweight template.
 
 Image acquisitions store a spatial THz trace cube and ROI metadata in a `.thz` file. The script reads the image axes and
 pixel spacing from the measurement metadata, calculates a spectrum for each pixel, and uses the stored ROI polygons when
@@ -71,20 +72,24 @@ Every JSON file in `configs/` describes one campaign. The top-level fields are:
 - `campaign_id`: name written to output tables and used in plot labels.
 - `description`: short description of the campaign and reference setup.
 - `plot_color`: Matplotlib color used for the campaign.
-- `analysis`: shared geometry, uncertainty, windowing, frequency, fit-band, and solid-ice calibration settings.
+- `analysis`: shared geometry, uncertainty, windowing, frequency, fit-band, and legacy solid-ice metadata.
 - `reference`: default reference acquisition for the campaign.
 - `measurements`: sample measurements and their physical properties.
 
 The `analysis` object contains:
 
 - `radius_m` and `radius_err_m`: sample-holder radius and uncertainty.
-- `thickness_err_mm` and `mass_err_kg`: campaign defaults for uncertainty calculations.
+- `thickness_err_mm` and `mass_err_kg`: campaign-level fallback uncertainty values; current analyses use the
+  measurement-specific values below.
 - `window_half_width` and `window_function`: time-domain window settings.
 - `min_frequency_thz` and `max_frequency_thz`: frequency range passed to the slab inversion.
 - `fit_band_thz`: frequency interval averaged for the reported refractive index near 1 THz.
-- `solid_ice_window_half_width`, `solid_ice_thickness_mm`, and `solid_ice_density_g_cm3`: solid-ice calibration
-  settings.
-- `solid_ice_measurement_path` and `solid_ice_reference_path`: sample and reference inputs used for that calibration.
+- `solid_ice_window_half_width`: window used by `compare_solid_ice.py` for measurements labelled `SOLID`.
+- `solid_ice_thickness_mm`, `solid_ice_density_g_cm3`, `solid_ice_measurement_path`, and
+  `solid_ice_reference_path`: required compatibility metadata retained in the current config schema. The active
+  Bruggeman workflows do not use these values: optical ice permittivity comes from the Tao et al. table, while
+  gravimetric porosity uses the fixed solid-ice density `0.917 g/cm^3` defined in the analysis code. The retained
+  `solid_ice_density_g_cm3` metadata is set to the same value for consistency.
 
 Each item in `measurements` contains:
 
@@ -103,13 +108,13 @@ Note: the `.thz` raw files also contain mass and thickness values, but the more 
 To analyze all configs, run from the project root:
 
 ```bash
-python code/analyze_measurement_campaigns.py
+uv run python code/analyze_measurement_campaigns.py
 ```
 
 To select one config:
 
 ```bash
-python code/analyze_measurement_campaigns.py --config data/configs/july6_2026.json
+uv run python code/analyze_measurement_campaigns.py --config data/configs/july2_2026.json
 ```
 
 Outputs are written to `results/` by default and can be displayed with the `--show` argument.

@@ -1,3 +1,9 @@
+"""Compare one frost sample under vacuum and ambient pressure.
+
+Timing drift between acquisitions is estimated from embedded reference pulses
+before the ambient sample trace is compared with the vacuum measurement.
+"""
+
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -13,6 +19,7 @@ from analyze_measurement_campaigns import (
     load_campaign_config,
     read_trace,
 )
+from plot_outputs import save_figure_outputs
 
 CAMPAIGN_CONFIG_PATH = DEFAULT_CONFIG_DIR / "july6_2026.json"
 VACUUM_PATH = DEFAULT_DATA_DIR / "porosity_july6_2026_frost_5.0mm_5.02g/data/trans/single_pixel"
@@ -23,6 +30,7 @@ AMBIENT_PATH = (
 
 
 def find_measurement(config, sample_path: Path):
+    """Find the configured measurement whose resolved path matches a sample."""
     for measurement in config.measurements:
         if measurement.path == sample_path:
             return measurement
@@ -30,6 +38,7 @@ def find_measurement(config, sample_path: Path):
 
 
 def read_embedded_trace(path: Path, dataset_name: str):
+    """Read, crop, align, and average a named embedded trace dataset."""
     thz_files = get_thz_files(path)
     traces = []
     time_axis = None
@@ -58,6 +67,7 @@ def read_embedded_trace(path: Path, dataset_name: str):
 
 
 def estimate_time_shift(reference_time: np.ndarray, reference_trace: np.ndarray, shifted_trace: np.ndarray) -> float:
+    """Estimate an integer-sample lag by cross-correlating two traces."""
     centered_reference = reference_trace - np.mean(reference_trace)
     centered_shifted = shifted_trace - np.mean(shifted_trace)
     correlation = np.correlate(centered_reference, centered_shifted, mode="full")
@@ -68,6 +78,7 @@ def estimate_time_shift(reference_time: np.ndarray, reference_trace: np.ndarray,
 
 
 def shift_trace(time_axis: np.ndarray, trace: np.ndarray, shift_ps: float) -> np.ndarray:
+    """Apply a time shift by interpolation and zero-fill uncovered samples."""
     shifted = np.interp(
         time_axis + shift_ps,
         time_axis,
@@ -82,6 +93,7 @@ def shift_trace(time_axis: np.ndarray, trace: np.ndarray, shift_ps: float) -> np
 
 
 def compute_refractive_index_curve(config, measurement, t_sample: np.ndarray, p_sample: np.ndarray):
+    """Extract a real refractive-index spectrum using configured slab settings."""
     t_ref, p_ref, _ = read_trace(measurement.reference_path)
     frequency, refractive_index, _ = get_refraction_index(
         time=t_sample,
@@ -98,6 +110,7 @@ def compute_refractive_index_curve(config, measurement, t_sample: np.ndarray, p_
 
 
 def main() -> None:
+    """Generate and save the vacuum/ambient trace and index comparison."""
     config = load_campaign_config(CAMPAIGN_CONFIG_PATH)
     vacuum_measurement = find_measurement(config, VACUUM_PATH)
     ambient_measurement = find_measurement(config, AMBIENT_PATH)
@@ -168,8 +181,7 @@ def main() -> None:
 
     output_dir = DEFAULT_OUTPUT_DIR
     output_dir.mkdir(parents=True, exist_ok=True)
-    fig.savefig(output_dir / "vacuum_vs_ambient_pressure.png", dpi=300)
-    fig.savefig(output_dir / "vacuum_vs_ambient_pressure.pdf")
+    save_figure_outputs(fig, output_dir / "vacuum_vs_ambient_pressure")
     plt.show()
 
 
