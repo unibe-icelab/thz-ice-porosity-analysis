@@ -302,7 +302,7 @@ if __name__ == "__main__":
     # plt.plot(times, traces[48, 68, :])
     # plt.plot(times, traces[42, 60, :])
     trace_ax.plot(t_ref, p_ref, color="black", label="Reference")
-    trace_ax.set_title("Example Trace Before Surface Extraction")
+    trace_ax.set_title("Example Trace")
     trace_ax.set_xlabel("Time (ps)")
     trace_ax.set_ylabel("Signal (a.u.)")
     trace_ax.legend()
