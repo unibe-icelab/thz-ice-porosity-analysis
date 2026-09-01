@@ -76,6 +76,10 @@ Every JSON file in `configs/` describes one campaign. The top-level fields are:
 - `reference`: default reference acquisition for the campaign.
 - `measurements`: sample measurements and their physical properties.
 
+Use a unique hexadecimal value from the active configs' color-vision-deficiency-safe qualitative palette for each
+campaign. Avoid ambiguous named red/green colors or pale yellow and cyan, and retain a black marker edge or another
+non-color cue in combined plots.
+
 The `analysis` object contains:
 
 - `radius_m` and `radius_err_m`: sample-holder radius and uncertainty.

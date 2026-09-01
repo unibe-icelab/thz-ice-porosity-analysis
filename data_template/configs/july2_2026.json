@@ -1,7 +1,7 @@
 {
   "campaign_id": "dataset 1",
   "description": "Description of dataset 1",
-  "plot_color": "cyan",
+  "plot_color": "#0072B2",
   "analysis": {
     "radius_m": 0.03,
     "radius_err_m": 0.0001,
