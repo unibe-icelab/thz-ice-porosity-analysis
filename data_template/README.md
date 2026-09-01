@@ -1,7 +1,7 @@
 # Data template
 
 This directory is a lightweight template for the THz-TDS raw-data and campaign-config layout used by the scripts in
-`code/`. Generated analysis products are written to the project-level `results/` directory and are not part of this
+the project root. Generated analysis products are written to the project-level `results/` directory and are not part of this
 template.
 
 Copy the template contents into `data/`, then insert your own acquisitions below `data/raw/` or download the published
@@ -30,11 +30,11 @@ The three layouts in use are:
 
 - `raw/<acquisition>/data/single_pixel/` for the legacy collimated measurements.
 - `raw/<acquisition>/data/trans/single_pixel/` for the July transmission campaigns.
-- `raw/<acquisition>/data_image/` for spatially resolved image cubes used by `code/refractive_index_image.py`.
+- `raw/<acquisition>/data_image/` for spatially resolved image cubes used by `refractive_index_image.py`.
 
 ## Refractive-index image data
 
-The full published dataset supplies the image inputs referenced by `code/refractive_index_image.py`. The default
+The full published dataset supplies the image inputs referenced by `refractive_index_image.py`. The default
 selection is the August 3 high-resolution frost image. Alternative image resolutions can be selected with the
 `SELECTED_IMAGE` constant in that script.
 
@@ -62,7 +62,7 @@ Paths stored in the configs are relative to the project root, for example:
 "path" : "data/raw/porosity_july6_2026_frost_5.0mm_5.02g/data/trans/single_pixel"
 ```
 
-`code/analyze_measurement_campaigns.py` resolves these paths against the project root, so analysis commands can be started
+`analyze_measurement_campaigns.py` resolves these paths against the project root, so analysis commands can be started
 from another working directory as well.
 
 ## Campaign config files
@@ -108,13 +108,13 @@ Note: the `.thz` raw files also contain mass and thickness values, but the more 
 To analyze all configs, run from the project root:
 
 ```bash
-uv run python code/analyze_measurement_campaigns.py
+uv run python analyze_measurement_campaigns.py
 ```
 
 To select one config:
 
 ```bash
-uv run python code/analyze_measurement_campaigns.py --config data/configs/july2_2026.json
+uv run python analyze_measurement_campaigns.py --config data/configs/july2_2026.json
 ```
 
 Outputs are written to `results/` by default and can be displayed with the `--show` argument.

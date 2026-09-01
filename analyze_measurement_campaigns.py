@@ -24,8 +24,7 @@ from thzpy.transferfunctions import uniform_slab
 
 from plot_outputs import save_figure_outputs
 
-CODE_DIR = Path(__file__).resolve().parent
-PROJECT_ROOT = CODE_DIR.parent
+PROJECT_ROOT = Path(__file__).resolve().parent
 DEFAULT_DATA_ROOT = PROJECT_ROOT / "data"
 DEFAULT_DATA_DIR = DEFAULT_DATA_ROOT / "raw"
 DEFAULT_CONFIG_DIR = DEFAULT_DATA_ROOT / "configs"

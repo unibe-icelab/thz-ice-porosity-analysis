@@ -24,7 +24,7 @@ structure. See [`data/README.md`](data/README.md) for the complete layout and co
 ## Project structure
 
 ```text
-code/          Python analysis code
+*.py           Python analysis scripts and shared utilities
 data/          Configs, raw measurements, and supporting input data
 results/       Generated figures, tables, and arrays
 data_template/ Lightweight data-layout template
@@ -52,20 +52,20 @@ curve based on the fixed solid-ice density `0.917 g/cm^3`, and
 `.png`, `.pdf`, and curve-data `.csv` files.
 
 ```bash
-uv run python code/analyze_measurement_campaigns.py
+uv run python analyze_measurement_campaigns.py
 ```
 
 Analyze selected configs or change the output directory with:
 
 ```bash
-uv run python code/analyze_measurement_campaigns.py \
+uv run python analyze_measurement_campaigns.py \
   --config data/configs/july6_2026.json \
   --output-dir results \
   --show
 ```
 
 Without `--show`, figures are saved and closed without opening interactive windows. Other active analysis scripts
-import this module from `code/`, so it should remain alongside them.
+import this module from the project root, so it should remain alongside them.
 
 ## `analyze_porosity_emt.py`
 
@@ -82,13 +82,13 @@ porosity.
 Run all configured campaigns:
 
 ```bash
-uv run python code/analyze_porosity_emt.py
+uv run python analyze_porosity_emt.py
 ```
 
 Run selected campaigns or choose another output directory:
 
 ```bash
-uv run python code/analyze_porosity_emt.py \
+uv run python analyze_porosity_emt.py \
   --config data/configs/july3.5_2026.json \
   --config data/configs/july4_2026.json \
   --output-dir results
@@ -117,7 +117,7 @@ timing drift using embedded reference traces from the sample and its configured 
 available.
 
 ```bash
-uv run python code/compare_solid_ice.py
+uv run python compare_solid_ice.py
 ```
 
 It writes `solid_ice.png`, `solid_ice.pdf`, and `solid_ice.csv` to `results/` and opens the plot interactively. Both the
@@ -131,7 +131,7 @@ ambient-pressure sample traces, estimates timing drift from each file's embedded
 trace, and compares the resulting refractive-index spectra.
 
 ```bash
-uv run python code/vacuum_vs_ambient_pressure.py
+uv run python vacuum_vs_ambient_pressure.py
 ```
 
 The configured acquisition paths point into `data/raw`. The script writes `vacuum_vs_ambient_pressure.png`, `.pdf`,
@@ -158,7 +158,7 @@ sample thickness, mask center/radius, ROI labels, and true-porosity mass assumpt
 acquisition.
 
 ```bash
-uv run python code/refractive_index_image.py
+uv run python refractive_index_image.py
 ```
 
 The script displays intermediate traces and spectra, prints ROI refractive-index/porosity statistics, and saves the
