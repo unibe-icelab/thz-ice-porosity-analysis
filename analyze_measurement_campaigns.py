@@ -24,6 +24,12 @@ from thzpy.transferfunctions import uniform_slab
 
 from plot_outputs import save_figure_outputs
 
+params = {
+    "font.size": 20,
+    "legend.fontsize": 14,
+}
+plt.rcParams.update(params)
+
 PROJECT_ROOT = Path(__file__).resolve().parent
 DEFAULT_DATA_ROOT = PROJECT_ROOT / "data"
 DEFAULT_DATA_DIR = DEFAULT_DATA_ROOT / "raw"
@@ -244,6 +250,78 @@ def read_trace_cached(
     return cache[path]
 
 
+def compute_time_domain_snr(
+        time: np.ndarray,
+        trace: np.ndarray,
+        noise_fraction: float = 0.1,
+) -> float:
+    """Estimate peak-to-RMS SNR in dB using the first part of a trace."""
+    time = np.asarray(time)
+    trace = np.asarray(trace)
+
+    # Use the first 10% of the trace as the noise region
+    n_noise = max(2, int(len(trace) * noise_fraction))
+    noise_region = trace[:n_noise]
+
+    noise_rms = np.std(noise_region)
+    signal_peak = np.max(np.abs(trace - np.mean(noise_region)))
+
+    if noise_rms <= 0:
+        return np.nan
+
+    return 20 * np.log10(signal_peak / noise_rms)
+
+
+def compute_frequency_domain_snr(
+        time: np.ndarray,
+        trace: np.ndarray,
+        noise_band: tuple[float, float] = (5.0, 10.0),
+) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Estimate frequency-dependent spectral SNR using a high-frequency
+    noise-floor region.
+
+    Assumes time is expressed in seconds.
+    """
+    time = np.asarray(time)
+    trace = np.asarray(trace)
+
+    dt = np.mean(np.diff(time))
+
+    # Remove DC offset
+    trace = trace - np.mean(trace)
+
+    # Fourier transform
+    spectrum = np.fft.rfft(trace)
+    frequencies = np.fft.rfftfreq(len(trace), d=dt)
+
+    amplitude = np.abs(spectrum)
+
+    # Estimate noise from 5–10 THz
+    noise_mask = (
+            (frequencies >= noise_band[0])
+            & (frequencies <= noise_band[1])
+    )
+
+    if not np.any(noise_mask):
+        raise ValueError(
+            "Noise band is outside the available frequency range."
+        )
+
+    noise_rms = np.sqrt(
+        np.mean(amplitude[noise_mask] ** 2)
+    )
+
+    if noise_rms <= 0:
+        raise ValueError("Estimated noise RMS must be positive.")
+
+    snr_db = 20 * np.log10(
+        np.maximum(amplitude, np.finfo(float).tiny) / noise_rms
+    )
+
+    return frequencies, snr_db
+
+
 def get_refraction_index(
         time: np.ndarray,
         traces: np.ndarray,
@@ -410,6 +488,9 @@ def analyze_campaign(
     fit_band_min, fit_band_max = settings.fit_band_thz
 
     results: List[MeasurementResult] = []
+
+    SNR_sample = []
+    SNR_ref = []
     for measurement in campaign.measurements:
         if measurement.ignore:
             continue
@@ -435,6 +516,41 @@ def analyze_campaign(
             mass_err_kg=measurement.mass_err_kg,
             thickness_err_mm=measurement.thickness_err_mm,
         )
+
+        # Estimate sample spectral SNR
+        snr_freqs, sample_snr_db = compute_frequency_domain_snr(
+            sample_t,
+            sample_p,
+            noise_band=(5.0, 10.0),
+        )
+
+        # Estimate reference spectral SNR
+        ref_snr_freqs, reference_snr_db = compute_frequency_domain_snr(
+            reference_t,
+            reference_p,
+            noise_band=(5.0, 10.0),
+        )
+        # Calculate maximum SNR for sample
+        sample_max_idx = np.nanargmax(sample_snr_db)
+        sample_snr_max = sample_snr_db[sample_max_idx]
+        sample_snr_max_freq = snr_freqs[sample_max_idx]
+
+        # Calculate maximum SNR for reference
+        reference_max_idx = np.nanargmax(reference_snr_db)
+        reference_snr_max = reference_snr_db[reference_max_idx]
+        reference_snr_max_freq = ref_snr_freqs[reference_max_idx]
+
+        print(
+            f"{campaign.campaign_id} | {measurement.measurement_id}\n"
+            f"  Sample max SNR:    {sample_snr_max:.1f} dB "
+            f"at {sample_snr_max_freq:.2f} THz\n"
+            f"  Reference max SNR: {reference_snr_max:.1f} dB "
+            f"at {reference_snr_max_freq:.2f} THz"
+        )
+
+        SNR_sample.append(sample_snr_max)
+        SNR_ref.append(reference_snr_max)
+
         fit_mask = (freqs > fit_band_min) & (freqs < fit_band_max)
         refractive_index_at_1thz = float(np.nanmean(refractive_index[fit_mask]))
         complex_refractive_index_at_1thz = complex(np.nanmean(complex_refractive_index[fit_mask]))
@@ -478,7 +594,7 @@ def analyze_campaign(
             )
         )
 
-    return results
+    return results, SNR_sample, SNR_ref
 
 
 def plot_shared_emt_curves(scatter_ax: plt.Axes, results: Sequence[MeasurementResult]) -> Tuple[float, float, int]:
@@ -565,7 +681,7 @@ def make_unique_legend(ax: plt.Axes) -> None:
     for handle, label in zip(handles, labels):
         if label not in unique:
             unique[label] = handle
-    ax.legend(unique.values(), unique.keys(), fontsize=8)
+    ax.legend(unique.values(), unique.keys())
 
 
 def parse_args() -> argparse.Namespace:
@@ -612,9 +728,18 @@ def main() -> None:
     trace_cache: Dict[Path, Tuple[np.ndarray, np.ndarray, int]] = {}
 
     all_results: List[MeasurementResult] = []
+
+    SNR_sample = []
+    SNR_ref = []
+
+
     for campaign in campaigns:
         overview_fig, overview_axes = plt.subplots(nrows=2, figsize=(10, 8))
-        all_results.extend(analyze_campaign(campaign, overview_axes, scatter_ax, trace_cache))
+        result, snr_sample, snr_reference = analyze_campaign(campaign, overview_axes, scatter_ax, trace_cache)
+        SNR_sample.extend(snr_sample)
+        SNR_ref.extend(snr_reference)
+
+        all_results.extend(result)
 
         overview_axes[0].set_title(campaign.campaign_id)
         overview_axes[0].set_xlabel("Time (ps)")
@@ -628,6 +753,185 @@ def main() -> None:
             args.output_dir / f"{campaign.campaign_id}_trace_overview",
         )
         overview_figures.append(overview_fig)
+
+        if campaign.campaign_id == "dataset 5":
+            detail_fig, (detail_ax, absorption_ax) = plt.subplots(
+                2, 1,
+                figsize=(16, 11),
+                sharex=True,
+            )
+
+            measurement_lookup = {
+                m.measurement_id: m
+                for m in campaign.measurements
+                if not m.ignore
+            }
+
+            result_lookup = {
+                r.measurement_id: r
+                for r in all_results
+                if r.campaign_id == campaign.campaign_id
+            }
+
+            lower_f = 0.5
+            noise_floor = 1.6
+
+            sorted_measurements = []
+
+            for line in overview_axes[1].get_lines():
+                measurement_id = line.get_label()
+
+                if (
+                        measurement_id not in measurement_lookup
+                        or measurement_id not in result_lookup
+                ):
+                    continue
+
+                measurement = measurement_lookup[measurement_id]
+                result = result_lookup[measurement_id]
+
+                sorted_measurements.append(
+                    (result.density_g_cm3, line, measurement)
+                )
+
+            # Sort from highest to lowest density
+            sorted_measurements.sort(
+                key=lambda item: item[0],
+                reverse=True,
+            )
+
+            c = 299792458.0  # Speed of light [m/s]
+
+            for density, line, measurement in sorted_measurements:
+                # Load sample and reference traces
+                sample_t, sample_p, _ = read_trace_cached(
+                    measurement.path,
+                    trace_cache,
+                )
+
+                reference_t, reference_p, _ = read_trace_cached(
+                    measurement.reference_path,
+                    trace_cache,
+                )
+
+                # Extract complex refractive index
+                f, n, complex_n = get_refraction_index(
+                    sample_t,
+                    sample_p,
+                    reference_t,
+                    reference_p,
+                    window_half_width=campaign.analysis.window_half_width,
+                    win_func=campaign.analysis.window_function,
+                    min_frequency=campaign.analysis.min_frequency_thz,
+                    max_frequency=campaign.analysis.max_frequency_thz,
+                    d_mm=measurement.thickness_mm,
+                )
+
+                # Extinction coefficient
+                kappa = np.imag(complex_n)
+
+                # Absorption coefficient [cm^-1]
+                alpha = (
+                        4 * np.pi * f * 1e12 * kappa
+                        / (c * 100)
+                )
+
+                valid_mask = (f >= lower_f) & (f <= noise_floor)
+                low_mask = f < lower_f
+                high_mask = f > noise_floor
+
+                # Refractive index
+                plotted_line, = detail_ax.plot(
+                    f[valid_mask],
+                    n[valid_mask],
+                    linewidth=2,
+                    label=(
+                        f"d = {measurement.thickness_mm:.2f} mm\n"
+                        f"ρ = {density:.3f} g/cm³"
+                    ),
+                )
+
+                color = plotted_line.get_color()
+
+                detail_ax.plot(
+                    f[low_mask], n[low_mask],
+                    linestyle="--",
+                    linewidth=1.2,
+                    color=color,
+                )
+
+                detail_ax.plot(
+                    f[high_mask], n[high_mask],
+                    linestyle="--",
+                    linewidth=1.2,
+                    color=color,
+                )
+
+                # Absorption coefficient
+                absorption_ax.plot(
+                    f[valid_mask],
+                    alpha[valid_mask],
+                    linewidth=2,
+                    color=color,
+                )
+
+                absorption_ax.plot(
+                    f[low_mask], alpha[low_mask],
+                    linestyle="--",
+                    linewidth=1.2,
+                    color=color,
+                )
+
+                absorption_ax.plot(
+                    f[high_mask], alpha[high_mask],
+                    linestyle="--",
+                    linewidth=1.2,
+                    color=color,
+                )
+
+            fit_min, fit_max = campaign.analysis.fit_band_thz
+
+            for ax in (detail_ax, absorption_ax):
+                ax.axvspan(
+                    fit_min,
+                    fit_max,
+                    color="blue",
+                    alpha=0.12,
+                    zorder=0,
+                )
+                ax.grid(True, alpha=0.3)
+
+            detail_ax.set_ylabel(r"Refractive index $n$ [-]")
+            absorption_ax.set_ylabel(
+                r"Absorption coefficient $\alpha$ [cm$^{-1}$]"
+            )
+            absorption_ax.set_xlabel(r"$f$ [THz]")
+
+            # Legend outside
+            detail_ax.legend(
+                loc="center left",
+                bbox_to_anchor=(1.02, 0.5),
+            )
+
+            detail_fig.tight_layout(rect=(0, 0, 0.95, 1))
+
+            save_figure_outputs(
+                detail_fig,
+                args.output_dir / "subset_detailed_refractive_index_absorption",
+            )
+
+            overview_figures.append(detail_fig)
+
+    snr_sample_avg = np.mean(SNR_sample)
+    snr_sample_std = np.std(SNR_sample)
+    snr_ref_avg = np.mean(SNR_ref)
+    snr_ref_std = np.std(SNR_ref)
+
+    print(
+        f"  Sample SNR:    {snr_sample_avg:.1f} +/- {snr_sample_std:.1f} dB\n"
+        f"  Reference SNR:    {snr_ref_avg:.1f} +/- {snr_ref_std:.1f} dB\n"
+    )
+
 
     _, solid_density_g_cm3, solid_result_count = plot_shared_emt_curves(scatter_ax, all_results)
     scatter_ax.set_xlabel(r"Ice density [g/cm$^3$]")

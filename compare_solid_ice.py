@@ -19,13 +19,20 @@ from analyze_measurement_campaigns import (
 from analyze_porosity_emt import compensate_sample_trace_from_embedded_refs
 from plot_outputs import save_figure_outputs
 
-LITERATURE_PATH = DEFAULT_DATA_ROOT / "ice_refractive_index.csv"
+N_LITERATURE_PATH = DEFAULT_DATA_ROOT / "ice_refractive_index.csv"
+ABSORPTION_LITERATURE_PATH = DEFAULT_DATA_ROOT / "ice_absorption_coefficient.csv"
 
 
-def load_literature_curve() -> pd.DataFrame:
+def load_literature_curve_n() -> pd.DataFrame:
     """Load the tab-separated Tao et al. frequency/index reference table."""
-    df = pd.read_csv(LITERATURE_PATH, delimiter="\t")
+    df = pd.read_csv(N_LITERATURE_PATH, delimiter="\t")
     return df.rename(columns={"f": "frequency_thz", "n": "refractive_index"})
+
+def load_literature_curve_absorption() -> pd.DataFrame:
+    """Load the tab-separated Tao et al. frequency/index reference table."""
+    df = pd.read_csv(ABSORPTION_LITERATURE_PATH, delimiter="\t")
+    return df.rename(columns={"f": "frequency_thz", "alpha": "absorption_coefficient"})
+
 
 
 def load_campaign_configs() -> list[CampaignConfig]:
@@ -51,19 +58,18 @@ def collect_solid_measurements(configs: list[CampaignConfig]) -> list[tuple[Camp
 
 
 def compute_solid_curves(
-        solid_measurements: list[tuple[CampaignConfig, MeasurementConfig]],
+    solid_measurements: list[tuple[CampaignConfig, MeasurementConfig]],
 ) -> list[dict[str, np.ndarray | str]]:
-    """Extract drift-corrected refractive-index spectra for solid samples.
+    """Extract drift-corrected refractive-index and absorption spectra."""
 
-    Embedded sample/reference traces are used for timing compensation before
-    the slab inversion. Each result dictionary contains a label, frequency axis
-    in terahertz, and the real refractive-index spectrum.
-    """
     curves: list[dict[str, np.ndarray | str]] = []
     embedded_ref_cache: dict[Path, tuple[np.ndarray, np.ndarray]] = {}
 
+    c = 299792458.0  # Speed of light [m/s]
+
     for config, measurement in solid_measurements:
         time, sample_trace, _ = read_trace(measurement.path)
+
         sample_trace = compensate_sample_trace_from_embedded_refs(
             measurement_path=measurement.path,
             reference_path=measurement.reference_path,
@@ -71,8 +77,10 @@ def compute_solid_curves(
             sample_trace=sample_trace,
             embedded_ref_cache=embedded_ref_cache,
         )
+
         t_ref, p_ref, _ = read_trace(measurement.reference_path)
-        frequency, refractive_index, _ = get_refraction_index(
+
+        frequency, refractive_index, complex_n = get_refraction_index(
             time=time,
             traces=sample_trace,
             t_ref=t_ref,
@@ -83,11 +91,25 @@ def compute_solid_curves(
             max_frequency=config.analysis.max_frequency_thz,
             d_mm=measurement.thickness_mm,
         )
+
+        # Extinction coefficient
+        kappa = np.imag(complex_n)
+
+        # Intensity absorption coefficient [cm^-1]
+        absorption_coefficient = (
+            4 * np.pi * frequency * 1e12 * kappa
+            / (c * 100)
+        )
+
         curves.append(
             {
-                "label": f"{config.campaign_id} {measurement.path.parent.parent.name}",
+                "label": (
+                    f"{config.campaign_id} "
+                    f"{measurement.path.parent.parent.name}"
+                ),
                 "frequency_thz": frequency,
                 "refractive_index": refractive_index,
+                "absorption_coefficient": absorption_coefficient,
             }
         )
 
@@ -103,18 +125,14 @@ def stack_curves(curves: list[dict[str, np.ndarray | str]]) -> tuple[np.ndarray,
 
 if __name__ == "__main__":
     DEFAULT_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    plt.rcParams.update(
-        {
-            "font.size": 12,
-            "axes.titlesize": 13,
-            "axes.labelsize": 12,
-            "legend.fontsize": 11,
-            "xtick.labelsize": 11,
-            "ytick.labelsize": 11,
-        }
-    )
+    params = {
+        "font.size": 20,
+        "legend.fontsize": 14,
+    }
+    plt.rcParams.update(params)
 
-    literature_df = load_literature_curve()
+    literature_df_n = load_literature_curve_n()
+    literature_df_absorption = load_literature_curve_absorption()
     configs = load_campaign_configs()
     solid_measurements = collect_solid_measurements(configs)
     solid_curves = compute_solid_curves(solid_measurements)
@@ -123,47 +141,128 @@ if __name__ == "__main__":
         raise RuntimeError("No solid ice measurements found in the campaign configs.")
 
     frequency_thz, stacked_curves = stack_curves(solid_curves)
-    mean_curve = np.nanmean(stacked_curves, axis=0)
-    lower_threshold = 0.8
-    upper_threshold = 2.0
 
-    fig, ax = plt.subplots(figsize=(10, 6))
-    ax.plot(
-        literature_df["frequency_thz"][
-            (literature_df["frequency_thz"] > lower_threshold) & (literature_df["frequency_thz"] < upper_threshold)],
-        literature_df["refractive_index"][
-            (literature_df["frequency_thz"] > lower_threshold) & (literature_df["frequency_thz"] < upper_threshold)],
+    # Mean refractive-index spectrum
+    mean_curve = np.nanmean(stacked_curves, axis=0)
+
+    # Mean absorption spectrum
+    stacked_absorption = np.vstack([
+        np.asarray(curve["absorption_coefficient"])
+        for curve in solid_curves
+    ])
+    mean_absorption = np.nanmean(stacked_absorption, axis=0)
+
+    lower_threshold = 0.8
+    upper_threshold = 1.7
+
+    fig, (ax_n, ax_alpha) = plt.subplots(
+        2, 1,
+        figsize=(16, 9),
+        sharex=True,
+    )
+
+    # Literature refractive index
+    lit_mask_n = (
+            (literature_df_n["frequency_thz"] > lower_threshold)
+            & (literature_df_n["frequency_thz"] < upper_threshold)
+    )
+
+    lit_mask_absorption = (
+            (literature_df_absorption["frequency_thz"] > lower_threshold)
+            & (literature_df_absorption["frequency_thz"] < upper_threshold)
+    )
+
+    ax_n.plot(
+        literature_df_n["frequency_thz"][lit_mask_n],
+        literature_df_n["refractive_index"][lit_mask_n],
         label="Tao et al. (2024)",
         color="tab:blue",
         linewidth=2.5,
     )
 
+    ax_alpha.plot(
+        literature_df_absorption["frequency_thz"][lit_mask_absorption],
+        literature_df_absorption["absorption_coefficient"][lit_mask_absorption],
+        label="Tao et al. (2024)",
+        color="tab:blue",
+        linewidth=2.5,
+    )
+
+    # Individual solid-ice measurements
     for i, curve in enumerate(solid_curves):
-        ax.plot(
-            curve["frequency_thz"][
-                (curve["frequency_thz"] > lower_threshold) & (curve["frequency_thz"] < upper_threshold)],
-            curve["refractive_index"][
-                (curve["frequency_thz"] > lower_threshold) & (curve["frequency_thz"] < upper_threshold)],
-            alpha=1.0,
+        f = np.asarray(curve["frequency_thz"])
+        n = np.asarray(curve["refractive_index"])
+        alpha = np.asarray(curve["absorption_coefficient"])
+
+        mask = (f > lower_threshold) & (f < upper_threshold)
+
+        # Refractive index
+        line, = ax_n.plot(
+            f[mask],
+            n[mask],
             linewidth=1.2,
             linestyle="--",
             label=f"dataset {i}",
         )
 
-    ax.plot(
-        frequency_thz[(frequency_thz > lower_threshold) & (frequency_thz < upper_threshold)],
-        mean_curve[(frequency_thz > lower_threshold) & (frequency_thz < upper_threshold)],
+        color = line.get_color()
+
+        # Absorption coefficient (same color)
+        ax_alpha.plot(
+            f[mask],
+            alpha[mask],
+            linewidth=1.2,
+            linestyle="--",
+            color=color,
+        )
+
+    # Mean curves
+    mean_mask = (
+            (frequency_thz > lower_threshold)
+            & (frequency_thz < upper_threshold)
+    )
+
+    ax_n.plot(
+        frequency_thz[mean_mask],
+        mean_curve[mean_mask],
         color="black",
         linewidth=2,
-        label=f"Mean",
+        label="Mean",
         zorder=3,
     )
 
-    ax.set_xlabel(r"$f$ [THz]")
-    ax.set_ylabel(r"Refractive index $n$ [-]")
-    ax.set_title("Solid ice refractive-index")
-    ax.grid(True, alpha=0.3)
-    ax.legend(loc="center left", bbox_to_anchor=(1.02, 0.5))
+    ax_alpha.plot(
+        frequency_thz[mean_mask],
+        mean_absorption[mean_mask],
+        color="black",
+        linewidth=2,
+        label="Mean",
+        zorder=3,
+    )
+
+    # Formatting
+    ax_n.set_ylabel(r"Refractive index $n$ [-]")
+    ax_alpha.set_ylabel(
+        r"Absorption coefficient $\alpha$ [cm$^{-1}$]"
+    )
+    ax_alpha.set_xlabel(r"$f$ [THz]")
+
+    ax_n.set_title("Solid ice refractive index and absorption")
+
+    for ax in (ax_n, ax_alpha):
+        ax.grid(True, alpha=0.3)
+
+    # Legend outside, on the right
+    ax_n.legend(
+        loc="center left",
+        bbox_to_anchor=(1.02, 0.5),
+    )
+
     fig.tight_layout(rect=(0, 0, 0.95, 1))
-    save_figure_outputs(fig, DEFAULT_OUTPUT_DIR / "solid_ice")
+
+    save_figure_outputs(
+        fig,
+        DEFAULT_OUTPUT_DIR / "solid_ice",
+    )
+
     plt.show()

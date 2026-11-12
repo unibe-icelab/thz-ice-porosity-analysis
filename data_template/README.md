@@ -49,8 +49,9 @@ selection is the August 3 high-resolution frost image. Alternative image resolut
 The image workflow also uses:
 
 - `porosity_august3_2026_focused_silicon_reference/data/trans/single_pixel/` as its silicon reference.
-- `ice_refractive_index.csv` for the Tao et al. solid-ice refractive index interpolated at exactly 1 THz. This table is
-  supplied with the published data and must be added when constructing `data/` from the lightweight template.
+- `ice_refractive_index.csv` for the Tao et al. solid-ice refractive index interpolated.
+- `ice_absorption_coefficient.csv` for the Tao et al. solid-ice absorption coefficient interpolated.
+This table is supplied with the published data and must be added when constructing `data/` from the lightweight template.
 
 Image acquisitions store a spatial THz trace cube and ROI metadata in a `.thz` file. The script reads the image axes and
 pixel spacing from the measurement metadata, calculates a spectrum for each pixel, and uses the stored ROI polygons when
